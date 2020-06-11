@@ -76,6 +76,7 @@ class _DistributedSGD(Optimizer):
             for i, p in enumerate(group['params']):
                 d_p = self._memory.cumulative_grads[i]
                 p.add_(d_p, alpha=-group['lr'])
+        self._memory.cumulative_grads = {}
 
         return loss
 

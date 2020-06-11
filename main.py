@@ -85,7 +85,6 @@ def run_epoch(model, data, is_train=False):
             # step 'master model' once we have passed through n-workers' worth
             if (batch+1) % model.num_workers == 0:
                 optimizer.step()
-                optimizer.cum_grad_update = {}
 
         # log in output, not to wandb though
         if batch % args.log_interval == 0 and batch > 0:
