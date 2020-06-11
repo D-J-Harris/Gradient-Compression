@@ -1,33 +1,69 @@
 ## built on from https://github.com/pytorch/pytorch/blob/master/torch/optim/sgd.py
+## additionally from https://horovod.readthedocs.io/en/latest/pytorch.html
 
 import torch
-from compress.none_compressor import NoneCompressor
 from torch.optim.optimizer import Optimizer
 
+from compression.none_compressor import NoneCompressor
+# from compression.topk import TopKCompressor
 
-class CustomSGD(Optimizer):
+
+class Compression(object):
+    """Optional gradient compression algorithm used during distributed training"""
+    none = NoneCompressor()
+    # topk = TopKCompressor()
+
+
+class _DistributedSGD(Optimizer):
     """
     custom SGD class that additionally implements gradient compression
     before each step update
     """
 
-    def __init__(self, params, compressor=NoneCompressor(), lr=1.0, momentum=0, dampening=0,
-                 weight_decay=0, nesterov=False):
-        self.compressor = compressor
-        self.cum_grad_update = {}
-        self.lr = lr
-        if lr < 0.0:
-            raise ValueError("Invalid learning rate: {}".format(lr))
-        if momentum < 0.0:
-            raise ValueError("Invalid momentum value: {}".format(momentum))
-        if weight_decay < 0.0:
-            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+    def __init__(self, params, named_parameters, compression=Compression.none):
+        super(self.__class__, self).__init__(params)
 
-        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
-                        weight_decay=weight_decay, nesterov=nesterov)
-        if nesterov and (momentum <= 0 or dampening != 0):
-            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
-        super(CustomSGD, self).__init__(params, defaults)
+        if named_parameters is not None:
+            named_parameters = list(named_parameters)
+        else:
+            named_parameters = [('manual_named_param.%s' % i, v)
+                                for param_group in self.param_groups
+                                for i, v in enumerate(param_group['params'])]
+        # make sure that named_parameters are tuples
+        if any([not isinstance(p, tuple) for p in named_parameters]):
+            raise ValueError('named_parameters should be a sequence of '
+                             'tuples (name, parameter), usually produced by '
+                             'model.named_parameters().')
+
+        dups = _DistributedSGD.find_duplicates([k for k, _ in named_parameters])
+        if len(dups) > 0:
+            raise ValueError('Parameter names in named_parameters must be unique. '
+                             'Found duplicates: %s' % ', '.join(dups))
+
+        all_param_ids = {id(v)
+                         for param_group in self.param_groups
+                         for v in param_group['params']}
+        named_param_ids = {id(v) for k, v in named_parameters}
+        unnamed_param_ids = all_param_ids - named_param_ids
+        if len(unnamed_param_ids):
+            raise ValueError('named_parameters was specified, but one or more model '
+                             'parameters were not named. Python object ids: '
+                             '%s' % ', '.join(str(id) for id in unnamed_param_ids))
+
+        self._parameter_names = {v: k for k, v in sorted(named_parameters)}
+        self._compression = compression
+        self.cum_grad_update = {}
+
+
+    @staticmethod
+    def find_duplicates(lst):
+        seen = set()
+        dups = set()
+        for el in lst:
+            if el in seen:
+                dups.add(el)
+            seen.add(el)
+        return dups
 
 
     @torch.no_grad()
@@ -42,12 +78,15 @@ class CustomSGD(Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
-        for i, p in enumerate(self.param_groups[0]['params']):
-            d_p = self.cum_grad_update[i]
-            p.add_(d_p, alpha=-self.lr)
+        for group in self.param_groups:
+            for i, p in enumerate(group['params']):
+                d_p = self.cum_grad_update[i]
+                p.add_(d_p, alpha=-group['lr'])
 
         return loss
 
+
+    @torch.no_grad()
     def compress_step(self):
         """
         accumulates the compressed gradients as it goes along,
@@ -62,6 +101,8 @@ class CustomSGD(Optimizer):
             nesterov = group['nesterov']
 
             for i, p in enumerate(group['params']):
+                name = self._parameter_names.get(p)
+                print(name)
                 if p.grad is None:
                     continue
                 d_p = p.grad
@@ -79,8 +120,14 @@ class CustomSGD(Optimizer):
                     else:
                         d_p = buf
 
-                d_p_comp, ctx = self.compressor.compress(d_p)
+                d_p_comp, ctx = self._compression.compress(d_p, name)
                 if i not in self.cum_grad_update:
                     self.cum_grad_update[i] = d_p_comp
                 else:
                     self.cum_grad_update[i] += d_p_comp
+
+
+def DistributedSGD(optimizer, named_parameters=None, compression=Compression.none):
+    cls = type(optimizer.__class__.__name__, (optimizer.__class__,),
+               dict(_DistributedSGD.__dict__))
+    return cls(optimizer.param_groups, named_parameters, compression)
