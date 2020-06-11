@@ -4,12 +4,8 @@
 import torch
 from torch.optim.optimizer import Optimizer
 
-from compression.none_compressor import NoneCompressor
-
-class Compression(object):
-    """Optional gradient compression algorithm used during distributed training"""
-    none = NoneCompressor()
-
+from memory.none import NoneMemory
+from compression.none import NoneCompression
 
 class _DistributedSGD(Optimizer):
     """
@@ -17,9 +13,8 @@ class _DistributedSGD(Optimizer):
     before each step update
     """
 
-    def __init__(self, params, named_parameters, compression=Compression.none):
+    def __init__(self, params, named_parameters, compression=NoneCompression(), memory=NoneMemory()):
         super(self.__class__, self).__init__(params)
-
 
         # checks below taken from horovod library
         if named_parameters is not None:
@@ -51,9 +46,7 @@ class _DistributedSGD(Optimizer):
 
         self._parameter_names = {v: k for k, v in sorted(named_parameters)}
         self._compression = compression
-
-        ## @here change to the memory class
-        self.cum_grad_update = {}
+        self._memory = memory
 
 
     @staticmethod
@@ -81,7 +74,7 @@ class _DistributedSGD(Optimizer):
 
         for group in self.param_groups:
             for i, p in enumerate(group['params']):
-                d_p = self.cum_grad_update[i]
+                d_p = self._memory.cumulative_grads[i]
                 p.add_(d_p, alpha=-group['lr'])
 
         return loss
@@ -121,15 +114,15 @@ class _DistributedSGD(Optimizer):
                         d_p = buf
 
                 d_p_comp, ctx = self._compression.compress(d_p, name)
-                if i not in self.cum_grad_update:
-                    self.cum_grad_update[i] = d_p_comp
+                if i not in self._memory.cumulative_grads:
+                    self._memory.cumulative_grads[i] = d_p_comp
                 else:
-                    self.cum_grad_update[i] += d_p_comp
+                    self._memory.cumulative_grads[i] += d_p_comp
 
 
-def DistributedSGD(optimizer, named_parameters=None, compression=Compression.none):
+def DistributedSGD(optimizer, named_parameters=None, compression=NoneCompression(), memory=NoneMemory()):
     """method allowing for addition of named parameters to optimiser
     (helps for compressor memory)."""
     cls = type(optimizer.__class__.__name__, (optimizer.__class__,),
                dict(_DistributedSGD.__dict__))
-    return cls(optimizer.param_groups, named_parameters, compression)
+    return cls(optimizer.param_groups, named_parameters, compression, memory)

@@ -8,7 +8,9 @@ import torch.nn as nn
 
 import data_load
 from model import LSTM
-from optim import DistributedSGD, Compression
+from optim import DistributedSGD
+from memory.none import NoneMemory
+from compression.none import NoneCompression
 from utils import repackage_hidden, batchify, get_batch
 
 parser = argparse.ArgumentParser(description='LSTM-based language model')
@@ -149,9 +151,10 @@ if __name__ == "__main__":
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()
-    compressor = Compression.none
+    compressor = NoneCompression()
+    memory = NoneMemory()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    optimizer = DistributedSGD(optimizer, model.named_parameters(), compressor)
+    optimizer = DistributedSGD(optimizer, model.named_parameters(), compressor, memory)
 
     ###############################################################################
     # run training and save model

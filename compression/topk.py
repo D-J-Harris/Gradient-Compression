@@ -1,5 +1,5 @@
 import torch
-from compression.compressor import Compressor
+from compression.compression import Compressor
 
 def sparsify(tensor, compress_ratio):
     tensor = tensor.flatten()
@@ -16,7 +16,7 @@ def desparsify(tensors, numel):
     return tensor_decompressed
 
 
-class TopKCompressor(Compressor):
+class TopKCompression(Compressor):
 
     def __init__(self, compress_ratio):
         super().__init__()

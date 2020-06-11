@@ -1,6 +1,6 @@
-from compression.compressor import Compressor
+from compression.compression import Compressor
 
-class NoneCompressor(Compressor):
+class NoneCompression(Compressor):
     """Default no-op compression."""
 
     def compress(self, tensor, name):
