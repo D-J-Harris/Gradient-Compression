@@ -5,13 +5,10 @@ import torch
 from torch.optim.optimizer import Optimizer
 
 from compression.none_compressor import NoneCompressor
-# from compression.topk import TopKCompressor
-
 
 class Compression(object):
     """Optional gradient compression algorithm used during distributed training"""
     none = NoneCompressor()
-    # topk = TopKCompressor()
 
 
 class _DistributedSGD(Optimizer):
@@ -23,6 +20,8 @@ class _DistributedSGD(Optimizer):
     def __init__(self, params, named_parameters, compression=Compression.none):
         super(self.__class__, self).__init__(params)
 
+
+        # checks below taken from horovod library
         if named_parameters is not None:
             named_parameters = list(named_parameters)
         else:
@@ -52,6 +51,8 @@ class _DistributedSGD(Optimizer):
 
         self._parameter_names = {v: k for k, v in sorted(named_parameters)}
         self._compression = compression
+
+        ## @here change to the memory class
         self.cum_grad_update = {}
 
 
@@ -91,7 +92,7 @@ class _DistributedSGD(Optimizer):
         """
         accumulates the compressed gradients as it goes along,
         each step of this method reflects a worker compressing its
-        own gradients
+        own gradients.
         """
 
         for group in self.param_groups:
@@ -102,7 +103,6 @@ class _DistributedSGD(Optimizer):
 
             for i, p in enumerate(group['params']):
                 name = self._parameter_names.get(p)
-                print(name)
                 if p.grad is None:
                     continue
                 d_p = p.grad
@@ -128,6 +128,8 @@ class _DistributedSGD(Optimizer):
 
 
 def DistributedSGD(optimizer, named_parameters=None, compression=Compression.none):
+    """method allowing for addition of named parameters to optimiser
+    (helps for compressor memory)."""
     cls = type(optimizer.__class__.__name__, (optimizer.__class__,),
                dict(_DistributedSGD.__dict__))
     return cls(optimizer.param_groups, named_parameters, compression)

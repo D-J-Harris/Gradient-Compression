@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 
@@ -16,11 +15,11 @@ class LSTM(nn.Module):
     self.vocab_size = vocab_size
     self.num_layers = num_layers
     self.dropout_prob = dropout_prob
-    self.dropout = nn.Dropout(1 - dropout_prob)
+    self.dropout = nn.Dropout(dropout_prob)
     self.lstm = nn.LSTM(input_size=embedding_dim,
                             hidden_size=embedding_dim,
                             num_layers=num_layers,
-                            dropout=1 - dropout_prob)
+                            dropout=dropout_prob)
 
     # custom weight init in torch.nn.Embedding
     emb_w = torch.Tensor(vocab_size, embedding_dim)
@@ -37,13 +36,14 @@ class LSTM(nn.Module):
 
 
   def init_hidden(self):
+    """Initialise the hidden weights in LSTM."""
     weight = next(self.parameters()).data
     return (Variable(weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()),
             Variable(weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()))
 
 
   def forward(self, inputs, hidden):
-
+    """Run a forward pass of the LSTM model."""
     embeds = self.dropout(self.embedding(inputs))
     lstm_out, hidden = self.lstm(embeds, hidden)
     lstm_out = self.dropout(lstm_out)
@@ -63,10 +63,3 @@ def repackage_hidden(h):
     return Variable(h.data)
   else:
     return tuple(repackage_hidden(v) for v in h)
-
-# def repackage_hidden(h):
-#   """Wraps hidden states in new Tensors, to detach them from their history."""
-#   if isinstance(h, torch.Tensor):
-#       return h.detach()
-#   else:
-#       return tuple(repackage_hidden(v) for v in h)

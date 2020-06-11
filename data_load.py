@@ -2,6 +2,7 @@ import os
 import torch
 
 class Dictionary(object):
+    """Dictionary for dataset."""
     def __init__(self):
         self.word2idx = {}
         self.idx2word = []
@@ -17,6 +18,7 @@ class Dictionary(object):
 
 
 class Corpus(object):
+    """Corpus defined by dataset, default Penn Treebank"""
     def __init__(self, path):
         self.dictionary = Dictionary()
         self.train = self.tokenize(os.path.join(path, 'ptb.train.txt'))
