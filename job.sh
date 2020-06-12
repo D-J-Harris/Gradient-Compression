@@ -10,7 +10,7 @@ python -u main.py \
 --batch_size_train 48 \
 --num_workers 2 \
 --memory 'none' \
---compression 'none' \
+--compression 'randomk' \
 --project_name 'workers_testing_1' \
 
 

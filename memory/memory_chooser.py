@@ -11,4 +11,5 @@ def memory_chooser(inp, arg=None):
     if inp == 'residual':
         return ResidualMemory()
 
-
+    else:
+        raise ValueError('memory argument invalid')

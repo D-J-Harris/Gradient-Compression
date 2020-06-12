@@ -1,7 +1,8 @@
 from compression.none import NoneCompression
 from compression.topk import TopKCompression
+from compression.randomk import RandomKCompressor
 
-def compression_chooser(inp, arg=0.3):
+def compression_chooser(inp, compress_ratio=0.3):
     """method for selecting compression method
     from command line argument."""
 
@@ -9,4 +10,10 @@ def compression_chooser(inp, arg=0.3):
         return NoneCompression()
 
     if inp == 'topk':
-        return TopKCompression(arg)
+        return TopKCompression(compress_ratio)
+
+    if inp == 'randomk':
+        return RandomKCompressor(compress_ratio)
+
+    else:
+        raise ValueError('compression argument invalid')
