@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 class LSTM(nn.Module):
@@ -38,8 +37,8 @@ class LSTM(nn.Module):
   def init_hidden(self):
     """Initialise the hidden weights in LSTM."""
     weight = next(self.parameters()).data
-    return (Variable(weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()),
-            Variable(weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()))
+    return (weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_(),
+            weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_())
 
 
   def forward(self, inputs, hidden):
@@ -58,8 +57,8 @@ class LSTM(nn.Module):
 
 
 def repackage_hidden(h):
-  """Wraps hidden states in new Variables, to detach them from their history."""
-  if type(h) == Variable:
-    return Variable(h.data)
+  """Wraps hidden states in new Tensors, to detach them from their history."""
+  if isinstance(h, torch.Tensor):
+    return h.detach()
   else:
     return tuple(repackage_hidden(v) for v in h)

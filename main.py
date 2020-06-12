@@ -9,9 +9,13 @@ import torch.nn as nn
 import data_load
 from model import LSTM
 from optim import DistributedSGD
-from memory.none import NoneMemory
-from compression.none import NoneCompression
 from utils import repackage_hidden, batchify, get_batch
+
+from memory.none import NoneMemory
+from memory.residual import ResidualMemory
+
+from compression.none import NoneCompression
+from compression.topk import TopKCompression
 
 parser = argparse.ArgumentParser(description='LSTM-based language model')
 parser.add_argument('--data', type=str, default='./data/ptb',
@@ -136,7 +140,7 @@ if __name__ == "__main__":
                  dropout_prob=args.dropout_prob, tie_weights=args.tie_weights)
     model.to(device)
 
-    # intialise weights and biases for metric tracking
+    # initialize weights and biases for metric tracking
     wandb.init(project=args.project_name, reinit=True)
     wandb.watch(model)
 
@@ -150,8 +154,8 @@ if __name__ == "__main__":
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()
-    compressor = NoneCompression()
-    memory = NoneMemory()
+    compressor = TopKCompression(0.3)
+    memory = ResidualMemory()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     optimizer = DistributedSGD(optimizer, model.named_parameters(), compressor, memory)
 

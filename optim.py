@@ -114,11 +114,19 @@ class _DistributedSGD(Optimizer):
                     else:
                         d_p = buf
 
+                # memory compensate, grad compress, then memory update
+                # additionally decompress, since we are not *really* sending
+                # gradients, just simulating the process
+                d_p = self._memory.compensate(d_p, name)
                 d_p_comp, ctx = self._compression.compress(d_p, name)
+                self._memory.update(d_p, name, self._compression, d_p_comp, ctx)
+                d_p_decomp = self._compression.decompress(d_p_comp, ctx)
+
+                # i.e. if first worker, initialise dict of cumulative grads
                 if i not in self._memory.cumulative_grads:
-                    self._memory.cumulative_grads[i] = d_p_comp
+                    self._memory.cumulative_grads[i] = d_p_decomp
                 else:
-                    self._memory.cumulative_grads[i] += d_p_comp
+                    self._memory.cumulative_grads[i] += d_p_decomp
 
 
 def DistributedSGD(optimizer, named_parameters=None, compression=NoneCompression(), memory=NoneMemory()):

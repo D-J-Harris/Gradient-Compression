@@ -3,9 +3,12 @@ from compression.compression import Compressor
 class NoneCompression(Compressor):
     """Default no-op compression."""
 
+    # returns tensors and context
+    # where tensors = tensor, indices (for sparse)
     def compress(self, tensor, name):
-        return tensor, None
+        tensors = tensor, None
+        return tensors, None
 
     def decompress(self, tensors, ctx):
-        tensor, = tensors
+        tensor, _ = tensors
         return tensor
