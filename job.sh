@@ -9,8 +9,10 @@ python -u main.py \
 --tie_weights \
 --batch_size_train 48 \
 --num_workers 2 \
+--memory 'none' \
+--compression 'none' \
 --project_name 'workers_testing_1' \
-2>&1 | tee models_logs/test_1-10.log
+
 
 ## missing --cuda and --save, among other flags
 

@@ -11,11 +11,8 @@ from model import LSTM
 from optim import DistributedSGD
 from utils import repackage_hidden, batchify, get_batch
 
-from memory.none import NoneMemory
-from memory.residual import ResidualMemory
-
-from compression.none import NoneCompression
-from compression.topk import TopKCompression
+from memory.memory_chooser import memory_chooser
+from compression.compression_chooser import compression_chooser
 
 parser = argparse.ArgumentParser(description='LSTM-based language model')
 parser.add_argument('--data', type=str, default='./data/ptb',
@@ -50,6 +47,10 @@ parser.add_argument('--project_name', type=str, default="test_run",
                     help='project name for wandb instance')
 parser.add_argument('--seed', type=int, default=42,
                     help='random seed for consistent testing')
+parser.add_argument('--compression', type=str, default='none',
+                    help='method used for gradient compression')
+parser.add_argument('--memory', type=str, default='none',
+                    help='method used for memory on gradient residuals')
 args = parser.parse_args()
 
 
@@ -105,6 +106,9 @@ if __name__ == "__main__":
     # define device and settings
     ###############################################################################
 
+    compressor = compression_chooser(args.compression)
+    memory = memory_chooser(args.memory)
+
     # Set the random seed manually for reproducibility.
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -154,8 +158,6 @@ if __name__ == "__main__":
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()
-    compressor = TopKCompression(0.3)
-    memory = ResidualMemory()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     optimizer = DistributedSGD(optimizer, model.named_parameters(), compressor, memory)
 
