@@ -31,11 +31,11 @@ parser.add_argument('--batch_size_test', type=int, default=1,
                     help='batch size during testing')
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs')
-parser.add_argument('--dropout_prob', type=float, default=0.65,
+parser.add_argument('--dropout_prob', type=float, default=0.0,
                     help='dropout probability, regularisation')
 parser.add_argument('--tie_weights', action='store_true',
                     help='tie weights of in_ and out_embeddings')
-parser.add_argument('--inital_lr', type=float, default=20.0,
+parser.add_argument('--initial_lr', type=float, default=20.0,
                     help='initial learning rate')
 parser.add_argument('--save', type=str,  default='models_logs/lm_model.pt',
                     help='path to save the final model')
@@ -51,6 +51,8 @@ parser.add_argument('--compression', type=str, default='none',
                     help='method used for gradient compression')
 parser.add_argument('--memory', type=str, default='none',
                     help='method used for memory on gradient residuals')
+parser.add_argument('--wandb', action='store_true',
+                    help='default use wandb for metric logging')
 args = parser.parse_args()
 
 
@@ -145,15 +147,16 @@ if __name__ == "__main__":
     model.to(device)
 
     # initialize weights and biases for metric tracking
-    wandb.init(project=args.project_name, reinit=True)
-    wandb.watch(model)
+    if args.wandb:
+        wandb.init(project=args.project_name, reinit=True)
+        wandb.watch(model)
 
     print("Number of model parameters:")
     print(sum(p.numel() for p in model.parameters()))
     print("Number of trainable model parameters:")
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    lr = args.inital_lr
+    lr = args.initial_lr
     lr_decay_base = 1 / 1.15
     m_flat_lr = 14.0  # number of epochs before lr decay
 
@@ -175,17 +178,21 @@ if __name__ == "__main__":
         # train, log, val, log
         train_p = run_epoch(model, train_data, is_train=True)
         print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
-        wandb.log({f'train perplexity': train_p})
         val_p = run_epoch(model, val_data)
         print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
-        wandb.log({f'validation perplexity': val_p})
+
+        if args.wandb:
+            wandb.log({f'train perplexity': train_p})
+            wandb.log({f'validation perplexity': val_p})
 
     # testing, set new batch size (to 1)
     model.batch_size = args.batch_size_test
     test_p = run_epoch(model, test_data)
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
-    wandb.log({f'test perplexity': test_p})
 
-    # save the model locally
-    with open(args.save, 'wb') as f:
-        torch.save(model.state_dict(), f)
+    if args.wandb:
+        wandb.log({f'test perplexity': test_p})
+
+    # # save the model locally
+    # with open(args.save, 'wb') as f:
+    #     torch.save(model.state_dict(), f)

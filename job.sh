@@ -5,16 +5,14 @@ python -u main.py \
 --num_steps 35 \
 --num_layers 2 \
 --batch_size_train 12 \
---num_epochs 2 \
+--num_epochs 1 \
 --tie_weights \
---batch_size_train 48 \
---num_workers 2 \
 --memory 'none' \
---compression 'randomk' \
---project_name 'workers_testing_1' \
+--compression 'none' \
+--project_name 'testers' \
 
 
-## missing --cuda and --save, among other flags
+## missing --cuda, --wandb, --tie_weights and --save, among other flags
 
 # 2>&1 means '2' 1>'1' 2>'1'
 # i.e. '2' is the argument value for --tied,
