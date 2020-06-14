@@ -46,7 +46,6 @@ class LSTM(nn.Module):
     embeds = self.dropout(self.embedding(inputs))
     lstm_out, hidden = self.lstm(embeds, hidden)
     lstm_out = self.dropout(lstm_out)
-    print(lstm_out.size())
 
     if self.tie_weights:
       logits = lstm_out.view(-1, self.embedding_dim).mm(self.embedding.weight.t())

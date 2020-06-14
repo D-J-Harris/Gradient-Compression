@@ -1,15 +1,17 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 50 \
+--hidden_size 650 \
 --num_workers 2 \
 --num_steps 35 \
 --num_layers 2 \
---batch_size_train 12 \
+--batch_size_train 50 \
 --num_epochs 1 \
---tie_weights \
+--initial_lr 5.0 \
+--dropout_prob 0.5 \
+--seed 1111 \
 --memory 'none' \
 --compression 'none' \
---project_name 'testers' \
+--project_name 'default' \
 
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags

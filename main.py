@@ -73,6 +73,7 @@ def run_epoch(model, data, is_train=False):
     # loop over data in batches of sequence length defined by bptt parameter
     for batch, i in enumerate(range(0, data.size(0) - 1, args.num_steps)):
         inputs, targets = get_batch(args, data, i)
+
         hidden = repackage_hidden(hidden)
         outputs, hidden = model(inputs, hidden)
 
@@ -86,6 +87,7 @@ def run_epoch(model, data, is_train=False):
             # clip, compress and save grads
             model.zero_grad()
             loss.backward()
+
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             optimizer.compress_step()
 
@@ -157,12 +159,13 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 1 / 1.15
-    m_flat_lr = 14.0  # number of epochs before lr decay
+    lr_decay_base = 1 / 1.2
+    m_flat_lr = 6.0  # number of epochs before lr decay
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()  # reduction is mean i.e. divide by num_steps * batch_size
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    optimizer = DistributedSGD(optimizer, model.named_parameters(), compressor, memory)
+    optimizer = DistributedSGD(optimizer, model.named_parameters(),
+                               args.num_workers, compressor, memory)
 
     ###############################################################################
     # run training and save model

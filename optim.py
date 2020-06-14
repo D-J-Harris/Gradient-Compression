@@ -13,7 +13,8 @@ class _DistributedSGD(Optimizer):
     before each step update
     """
 
-    def __init__(self, params, named_parameters, compression=NoneCompression(), memory=NoneMemory()):
+    def __init__(self, params, named_parameters, num_workers=1, compression=NoneCompression(),
+                 memory=NoneMemory()):
         super(self.__class__, self).__init__(params)
 
         # checks below taken from horovod library
@@ -45,6 +46,7 @@ class _DistributedSGD(Optimizer):
                              '%s' % ', '.join(str(id) for id in unnamed_param_ids))
 
         self._parameter_names = {v: k for k, v in sorted(named_parameters)}
+        self.num_workers = num_workers
         self._compression = compression
         self._memory = memory
 
@@ -75,6 +77,7 @@ class _DistributedSGD(Optimizer):
         for group in self.param_groups:
             for i, p in enumerate(group['params']):
                 d_p = self._memory.cumulative_grads[i]
+                d_p = d_p / self.num_workers  # as per DGC paper
                 p.add_(d_p, alpha=-group['lr'])
         self._memory.cumulative_grads = {}
 
@@ -129,9 +132,10 @@ class _DistributedSGD(Optimizer):
                     self._memory.cumulative_grads[i] += d_p_decomp
 
 
-def DistributedSGD(optimizer, named_parameters=None, compression=NoneCompression(), memory=NoneMemory()):
+def DistributedSGD(optimizer, named_parameters=None, num_workers=1,
+                   compression=NoneCompression(), memory=NoneMemory()):
     """method allowing for addition of named parameters to optimiser
     (helps for compressor memory)."""
     cls = type(optimizer.__class__.__name__, (optimizer.__class__,),
                dict(_DistributedSGD.__dict__))
-    return cls(optimizer.param_groups, named_parameters, compression, memory)
+    return cls(optimizer.param_groups, named_parameters, num_workers, compression, memory)
