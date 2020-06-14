@@ -76,9 +76,11 @@ class _DistributedSGD(Optimizer):
 
         for group in self.param_groups:
             for i, p in enumerate(group['params']):
-                d_p = self._memory.cumulative_grads[i]
-                d_p = d_p / self.num_workers  # as per DGC paper
-                p.add_(d_p, alpha=-group['lr'])
+                d_p_comp = self._memory.cumulative_grads[i]
+                ctx = self._memory.cumulative_grads[-i]
+                d_p_decomp = self._compression.decompress(d_p_comp, ctx)
+                d_p_decomp = d_p_decomp / self.num_workers  # as per DGC paper
+                p.add_(d_p_decomp, alpha=-group['lr'])
         self._memory.cumulative_grads = {}
 
         return loss
@@ -118,18 +120,17 @@ class _DistributedSGD(Optimizer):
                         d_p = buf
 
                 # memory compensate, grad compress, then memory update
-                # additionally decompress, since we are not *really* sending
-                # gradients, just simulating the process
                 d_p = self._memory.compensate(d_p, name)
                 d_p_comp, ctx = self._compression.compress(d_p, name)
                 self._memory.update(d_p, name, self._compression, d_p_comp, ctx)
-                d_p_decomp = self._compression.decompress(d_p_comp, ctx)
 
                 # i.e. if first worker, initialise dict of cumulative grads
+                # negative index stores context for that parameter
                 if i not in self._memory.cumulative_grads:
-                    self._memory.cumulative_grads[i] = d_p_decomp
+                    self._memory.cumulative_grads[i] = d_p_comp
+                    self._memory.cumulative_grads[-i] = ctx
                 else:
-                    self._memory.cumulative_grads[i] += d_p_decomp
+                    self._memory.cumulative_grads[i] += d_p_comp
 
 
 def DistributedSGD(optimizer, named_parameters=None, num_workers=1,

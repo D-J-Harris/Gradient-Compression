@@ -2,7 +2,7 @@ from compression.none import NoneCompression
 from compression.topk import TopKCompression
 from compression.randomk import RandomKCompressor
 
-def compression_chooser(inp, compress_ratio=0.3):
+def compression_chooser(inp, compress_ratio=0.01):
     """method for selecting compression method
     from command line argument."""
 

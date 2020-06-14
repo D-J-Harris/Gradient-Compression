@@ -15,7 +15,7 @@ from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
 
 parser = argparse.ArgumentParser(description='LSTM-based language model')
-parser.add_argument('--data', type=str, default='./data/ptb',
+parser.add_argument('--data', type=str, default='./penn',
                     help='location of the data corpus')
 parser.add_argument('--hidden_size', type=int, default=250,
                     help='size of word embeddings/hidden size LSTM')
@@ -195,6 +195,14 @@ if __name__ == "__main__":
 
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
+        wandb.log({f'dropout': args.dropout_prob})
+        wandb.log({f'num_workers': args.num_workers})
+        wandb.log({f'initial_lr': args.initial_lr})
+        wandb.log({f'batch size': args.batch_size_train})
+        wandb.log({f'tied_weights': args.tie_weights})
+        wandb.log({f'batch size': args.batch_size_train})
+        wandb.log({f'compression': args.compression})
+        wandb.log({f'hidden_size': args.hidden_size})
 
     # # save the model locally
     # with open(args.save, 'wb') as f:
