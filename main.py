@@ -65,43 +65,46 @@ def run_epoch(model, data, is_train=False):
     else:
         model.eval()
 
-    # epoch_size = ((len(data) // model.batch_size) - 1) // model.num_steps
     hidden = model.init_hidden()
-    costs = 0.0
+    costs = [0]*args.num_workers
     iters = 0
+    worker_num = 0
 
+    epoch_size = data.size(0) // model.num_steps
     # loop over data in batches of sequence length defined by bptt parameter
-    for batch, i in enumerate(range(0, data.size(0) - 1, args.num_steps)):
-        inputs, targets = get_batch(args, data, i)
+    for batch_idx in range(epoch_size):
+
+        inputs, targets = get_batch(args, data, batch_idx)
 
         hidden = repackage_hidden(hidden)
         outputs, hidden = model(inputs, hidden)
 
         # add/divide by num_steps is for weighting purposes
         loss = criterion(outputs.view(-1, vocab_size), targets)
-        costs += loss.item() * model.num_steps
-        iters += model.num_steps
+        costs[worker_num % args.num_workers] += loss.item()
+        iters += 1 / args.num_workers
+        worker_num += 1
 
         if is_train:
             # clear leaf nodes in graph, backward pass,
             # clip, compress and save grads
-            model.zero_grad()
+            # model.zero_grad()
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            optimizer.compress_step()
+            # optimizer.compress_step()
 
             # step 'master model' once we have passed through n-workers' worth
-            if (batch+1) % model.num_workers == 0:
+            if (batch_idx+1) % model.num_workers == 0:
                 optimizer.step()
+                model.zero_grad()
 
-        # log in output, not to wandb though
-        if batch % args.log_interval == 0 and batch > 0:
-            print('epoch progress {:.3f}%  -->  ppl {:8.2f}'.format(
-                i * 100.0 / data.size(0),
-                np.exp(costs / iters)))
+        # log progress, not to wandb though
+        if batch_idx % args.log_interval == 0 and batch_idx > 0:
+            print('epoch progress {:.3f}%'.format(
+                batch_idx*args.num_steps * 100.0 / data.size(0)))
 
-    return np.exp(costs / iters)
+    return np.exp(np.mean(costs) / iters)
 
 
 if __name__ == "__main__":
@@ -159,13 +162,13 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 1 / 1.2
-    m_flat_lr = 6.0  # number of epochs before lr decay
+    lr_decay_base = 1 / 1.15
+    m_flat_lr = 10.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # reduction is mean i.e. divide by num_steps * batch_size
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    optimizer = DistributedSGD(optimizer, model.named_parameters(),
-                               args.num_workers, compressor, memory)
+    # optimizer = DistributedSGD(optimizer, model.named_parameters(),
+    #                            args.num_workers, compressor, memory)
 
     ###############################################################################
     # run training and save model
@@ -202,6 +205,7 @@ if __name__ == "__main__":
         wandb.log({f'tied_weights': args.tie_weights})
         wandb.log({f'batch size': args.batch_size_train})
         wandb.log({f'compression': args.compression})
+        wandb.log({f'memory': args.memory})
         wandb.log({f'hidden_size': args.hidden_size})
 
     # save the model locally

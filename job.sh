@@ -1,12 +1,12 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 30 \
---num_workers 12 \
+--num_workers 2 \
 --num_steps 35 \
 --num_layers 2 \
 --batch_size_train 48 \
 --num_epochs 10 \
---initial_lr 5.0 \
+--initial_lr 10.0 \
 --dropout_prob 0.5 \
 --tie_weights \
 --seed 1111 \

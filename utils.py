@@ -17,9 +17,10 @@ def batchify(data, device, bsz):
     return data.to(device)
 
 
-def get_batch(args, source, i):
+def get_batch(args, source, batch_idx):
     """Returns the batch starting from position i."""
-    seq_len = min(args.num_steps, len(source) - 1 - i)
-    data = source[i:i+seq_len]
-    target = source[i+1:i+1+seq_len].view(-1)
+    step_start = batch_idx * args.num_steps
+    seq_len = min(args.num_steps, len(source) - 1 - step_start)
+    data = source[step_start:step_start+seq_len]
+    target = source[step_start+1:step_start+1+seq_len].view(-1)
     return data, target
