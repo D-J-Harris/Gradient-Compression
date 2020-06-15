@@ -17,4 +17,4 @@ class ResidualMemory(Memory):
         """Update the residuals."""
         tensor_decompressed = compressor.decompress(tensor_compressed, ctx)
         residual = tensor - tensor_decompressed
-        self.residuals[name] = residual
+        self.residuals[name] = residual.clone()

@@ -45,10 +45,10 @@ class _DistributedSGD(Optimizer):
                              'parameters were not named. Python object ids: '
                              '%s' % ', '.join(str(id) for id in unnamed_param_ids))
 
-        self._parameter_names = {v: k for k, v in sorted(named_parameters)}
+        self.parameter_names = {v: k for k, v in sorted(named_parameters)}
         self.num_workers = num_workers
-        self._compression = compression
-        self._memory = memory
+        self.compression = compression
+        self.memory = memory
 
 
     @staticmethod
@@ -74,14 +74,21 @@ class _DistributedSGD(Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
+
         for group in self.param_groups:
-            for i, p in enumerate(group['params']):
-                d_p_comp = self._memory.cumulative_grads[i]
-                ctx = self._memory.cumulative_grads[-i]
-                d_p_decomp = self._compression.decompress(d_p_comp, ctx)
-                d_p_decomp = d_p_decomp / self.num_workers  # as per DGC paper
-                p.add_(d_p_decomp, alpha=-group['lr'])
-        self._memory.cumulative_grads = {}
+            for p in group['params']:
+                name = self.parameter_names.get(p)
+
+                d_p = self.memory.cumulative_grads[name]
+                ctx = self.memory.cumulative_grads[name+'ctx']
+
+                if not self.compression.is_sparse:
+                    d_ps = d_p, None  # add fake indices
+                    d_p = self.compression.decompress(d_ps, ctx)
+
+                d_p = d_p / self.num_workers  # as per DGC paper
+                p.add_(d_p, alpha=-group['lr'])
+        self.memory.cumulative_grads = {}
 
         return loss
 
@@ -100,8 +107,9 @@ class _DistributedSGD(Optimizer):
             dampening = group['dampening']
             nesterov = group['nesterov']
 
-            for i, p in enumerate(group['params']):
-                name = self._parameter_names.get(p)
+            for p in group['params']:
+                name = self.parameter_names.get(p)
+
                 if p.grad is None:
                     continue
                 d_p = p.grad
@@ -120,17 +128,24 @@ class _DistributedSGD(Optimizer):
                         d_p = buf
 
                 # memory compensate, grad compress, then memory update
-                d_p = self._memory.compensate(d_p, name)
-                d_p_comp, ctx = self._compression.compress(d_p, name)
-                self._memory.update(d_p, name, self._compression, d_p_comp, ctx)
+                d_p = self.memory.compensate(d_p, name)
+                d_p_comp, ctx = self.compression.compress(d_p, name)
+                self.memory.update(d_p, name, self.compression, d_p_comp, ctx)
 
-                # i.e. if first worker, initialise dict of cumulative grads
-                # negative index stores context for that parameter
-                if i not in self._memory.cumulative_grads:
-                    self._memory.cumulative_grads[i] = d_p_comp
-                    self._memory.cumulative_grads[-i] = ctx
+                # if sparse, then decompress before accumulating
+                # else, just take the tensor (indices is None)
+                if self.compression.is_sparse:
+                    d_p_comp = self.compression.decompress(d_p_comp, ctx)
                 else:
-                    self._memory.cumulative_grads[i] += d_p_comp
+                    d_p_comp = d_p_comp[0]
+
+                # if first worker, initialise dict of cumulative grads
+                if name not in self.memory.cumulative_grads:
+                    # ctx may need cloning in future too
+                    self.memory.cumulative_grads[name] = d_p_comp.clone()
+                    self.memory.cumulative_grads[name+'ctx'] = ctx
+                else:
+                    self.memory.cumulative_grads[name] += d_p_comp.clone()
 
 
 def DistributedSGD(optimizer, named_parameters=None, num_workers=1,

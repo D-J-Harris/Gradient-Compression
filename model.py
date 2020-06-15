@@ -5,7 +5,8 @@ import torch.nn as nn
 
 class LSTM(nn.Module):
   """Simple LSMT-based language model"""
-  def __init__(self, embedding_dim, num_steps, batch_size, num_workers, vocab_size, num_layers, dropout_prob, tie_weights):
+  def __init__(self, embedding_dim, num_steps, batch_size, num_workers,
+               vocab_size, num_layers, dropout_prob, tie_weights):
     super(LSTM, self).__init__()
     self.embedding_dim = embedding_dim
     self.num_steps = num_steps

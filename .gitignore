@@ -163,3 +163,4 @@ Temporary Items
 wandb/
 models_logs/
 penn/
+.idea/

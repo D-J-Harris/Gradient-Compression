@@ -98,8 +98,8 @@ def run_epoch(model, data, is_train=False):
         # log in output, not to wandb though
         if batch % args.log_interval == 0 and batch > 0:
             print('epoch progress {:.3f}%  -->  ppl {:8.2f}'.format(
-            i * 100.0 / data.size(0),
-            np.exp(costs / iters)))
+                i * 100.0 / data.size(0),
+                np.exp(costs / iters)))
 
     return np.exp(costs / iters)
 
@@ -204,6 +204,6 @@ if __name__ == "__main__":
         wandb.log({f'compression': args.compression})
         wandb.log({f'hidden_size': args.hidden_size})
 
-    # # save the model locally
+    # save the model locally
     # with open(args.save, 'wb') as f:
     #     torch.save(model.state_dict(), f)
