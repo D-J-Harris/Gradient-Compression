@@ -68,7 +68,6 @@ def run_epoch(model, data, is_train=False):
 
     hidden = model.init_hidden()
     costs = [0]*args.num_workers
-    iters = 0
     iter_num = 0
 
     epoch_size = data.size(0) // model.num_steps
@@ -84,7 +83,6 @@ def run_epoch(model, data, is_train=False):
         # add/divide by num_steps is for weighting purposes
         loss = criterion(outputs.view(-1, vocab_size), targets)
         costs[iter_num % args.num_workers] += loss.item()
-        iters += 1 / args.num_workers
         iter_num += 1
 
         if is_train:
@@ -97,7 +95,7 @@ def run_epoch(model, data, is_train=False):
             optimizer.compress_step(iter_num % args.num_workers)  # pass the worker number, for memory
 
             # step 'master model' once we have passed through n-workers' worth
-            if (iter_num+1) % model.num_workers == 0:
+            if (iter_num + 1) % model.num_workers == 0:
                 optimizer.step()
 
         # log progress, not to wandb though
@@ -105,7 +103,7 @@ def run_epoch(model, data, is_train=False):
             print('epoch progress {:.3f}%'.format(
                 iter_num * 100.0 / epoch_size))
 
-    return np.exp(np.mean(costs) / iters)
+    return np.exp(np.mean(costs) / (iter_num / args.num_workers))
 
 
 if __name__ == "__main__":
