@@ -1,4 +1,5 @@
 import wandb
+import random
 import argparse
 import numpy as np
 
@@ -68,11 +69,12 @@ def run_epoch(model, data, is_train=False):
     hidden = model.init_hidden()
     costs = [0]*args.num_workers
     iters = 0
-    worker_num = 0
+    iter_num = 0
 
     epoch_size = data.size(0) // model.num_steps
     # loop over data in batches of sequence length defined by bptt parameter
-    for batch_idx in range(epoch_size):
+    # random sample of batch_idxs for implicit shuffling (helps with num_workers > 1)
+    for batch_idx in random.sample(range(epoch_size),epoch_size):
 
         inputs, targets = get_batch(args, data, batch_idx)
 
@@ -81,28 +83,27 @@ def run_epoch(model, data, is_train=False):
 
         # add/divide by num_steps is for weighting purposes
         loss = criterion(outputs.view(-1, vocab_size), targets)
-        costs[worker_num % args.num_workers] += loss.item()
+        costs[iter_num % args.num_workers] += loss.item()
         iters += 1 / args.num_workers
-        worker_num += 1
+        iter_num += 1
 
         if is_train:
             # clear leaf nodes in graph, backward pass,
             # clip, compress and save grads
-            # model.zero_grad()
+            model.zero_grad()
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            # optimizer.compress_step()
+            optimizer.compress_step(iter_num % args.num_workers)  # pass the worker number, for memory
 
             # step 'master model' once we have passed through n-workers' worth
-            if (batch_idx+1) % model.num_workers == 0:
+            if (iter_num+1) % model.num_workers == 0:
                 optimizer.step()
-                model.zero_grad()
 
         # log progress, not to wandb though
         if batch_idx % args.log_interval == 0 and batch_idx > 0:
             print('epoch progress {:.3f}%'.format(
-                batch_idx*args.num_steps * 100.0 / data.size(0)))
+                iter_num * 100.0 / epoch_size))
 
     return np.exp(np.mean(costs) / iters)
 
@@ -117,6 +118,7 @@ if __name__ == "__main__":
     memory = memory_chooser(args.memory)
 
     # Set the random seed manually for reproducibility.
+    random.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
@@ -167,8 +169,8 @@ if __name__ == "__main__":
 
     criterion = nn.CrossEntropyLoss()  # reduction is mean i.e. divide by num_steps * batch_size
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    # optimizer = DistributedSGD(optimizer, model.named_parameters(),
-    #                            args.num_workers, compressor, memory)
+    optimizer = DistributedSGD(optimizer, model.named_parameters(),
+                               args.num_workers, compressor, memory)
 
     ###############################################################################
     # run training and save model
@@ -182,13 +184,13 @@ if __name__ == "__main__":
             g['lr'] = lr
 
         # train, log, val, log
-        train_p = run_epoch(model, train_data, is_train=True)
-        print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
+        # train_p = run_epoch(model, train_data, is_train=True)
+        # print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
         val_p = run_epoch(model, val_data)
         print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
 
         if args.wandb:
-            wandb.log({f'train perplexity': train_p})
+            # wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
 
     # testing, set new batch size (to 1)

@@ -1,10 +1,10 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 30 \
---num_workers 2 \
+--num_workers 4 \
 --num_steps 35 \
 --num_layers 2 \
---batch_size_train 48 \
+--batch_size_train 64 \
 --num_epochs 10 \
 --initial_lr 10.0 \
 --dropout_prob 0.5 \

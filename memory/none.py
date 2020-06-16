@@ -3,12 +3,12 @@ from memory.memory import Memory
 class NoneMemory(Memory):
 
     def __init__(self):
-        super().__init__(cumulative_grads={})
+        super().__init__(cumulative_grads={}, residuals={})
 
-    def compensate(self, tensor, name):
+    def compensate(self, tensor, name, worker):
         """Update the tensor with the residuals."""
         return tensor
 
-    def update(self, tensor, name, compressor, tensor_compressed, ctx):
+    def update(self, tensor, name, worker, compressor, tensor_compressed, ctx):
         """Update the residuals."""
         pass

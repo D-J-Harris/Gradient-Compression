@@ -89,12 +89,13 @@ class _DistributedSGD(Optimizer):
                 d_p = d_p / self.num_workers  # as per DGC paper
                 p.add_(d_p, alpha=-group['lr'])
         self.memory.cumulative_grads = {}
+        self.memory.residuals = {}
 
         return loss
 
 
     @torch.no_grad()
-    def compress_step(self):
+    def compress_step(self, worker):
         """
         accumulates the compressed gradients as it goes along,
         each step of this method reflects a worker compressing its
@@ -128,9 +129,9 @@ class _DistributedSGD(Optimizer):
                         d_p = buf
 
                 # memory compensate, grad compress, then memory update
-                d_p = self.memory.compensate(d_p, name)
+                d_p = self.memory.compensate(d_p, name, worker)
                 d_p_comp, ctx = self.compression.compress(d_p, name)
-                self.memory.update(d_p, name, self.compression, d_p_comp, ctx)
+                self.memory.update(d_p, name, worker, self.compression, d_p_comp, ctx)
 
                 # if sparse, then decompress before accumulating
                 # else, just take the tensor (indices is None)
@@ -142,10 +143,10 @@ class _DistributedSGD(Optimizer):
                 # if first worker, initialise dict of cumulative grads
                 if name not in self.memory.cumulative_grads:
                     # ctx may need cloning in future too
-                    self.memory.cumulative_grads[name] = d_p_comp.clone()
+                    self.memory.cumulative_grads[name] = torch.clone(d_p_comp).detach()
                     self.memory.cumulative_grads[name+'ctx'] = ctx
                 else:
-                    self.memory.cumulative_grads[name] += d_p_comp.clone()
+                    self.memory.cumulative_grads[name] += torch.clone(d_p_comp).detach()
 
 
 def DistributedSGD(optimizer, named_parameters=None, num_workers=1,
