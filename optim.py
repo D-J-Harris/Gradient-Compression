@@ -2,6 +2,7 @@
 ## additionally from https://horovod.readthedocs.io/en/latest/pytorch.html
 
 import torch
+from utils import truncate
 from torch.optim.optimizer import Optimizer
 
 from memory.none import NoneMemory
@@ -85,9 +86,11 @@ class _DistributedSGD(Optimizer):
                 if not self.compression.is_sparse:
                     d_ps = d_p, None  # add fake indices
                     d_p = self.compression.decompress(d_ps, ctx)
+                # if learning rate doesnt, then divide by num_workers here
 
-                d_p = d_p / self.num_workers  # as per DGC paper
+                d_p = truncate(d_p, 10)  # truncate from float64, like with outputs and hiddens
                 p.add_(d_p, alpha=-group['lr'])
+
         self.memory.cumulative_grads = {}
         self.memory.residuals = {}
 

@@ -31,3 +31,8 @@ def get_batch(source, batch_size, batch_idx):
     end = batch_size * (batch_idx+1)
     data = source[start:end].t().contiguous()
     return data
+
+def truncate(tensor, n_decimals):
+    """Returns a tensor truncated to n_decimal places.
+    Useful for ensuring equal values up to float precision"""
+    return (tensor * 10 ** n_decimals).round() / (10 ** n_decimals)

@@ -8,7 +8,7 @@ import torch.nn as nn
 import data_load
 from model import LSTM
 from optim import DistributedSGD
-from utils import repackage_hidden, batchify, get_batch
+from utils import repackage_hidden, batchify, get_batch, truncate
 
 from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
@@ -40,7 +40,7 @@ parser.add_argument('--save', type=str,  default='models_logs/lm_model.pt',
                     help='path to save the final model')
 parser.add_argument('--cuda', action='store_true',
                     help='default use CUDA')
-parser.add_argument('--log-interval', type=int, default=200,
+parser.add_argument('--log-interval', type=int, default=50,
                     help='report interval for measuring epoch progress')
 parser.add_argument('--project_name', type=str, default="test_run",
                     help='project name for wandb instance')
@@ -64,7 +64,7 @@ def run_epoch(model, data, is_train=False):
     else:
         model.eval()
 
-    # hidden in positive indices, context in negative indices
+    # hidden state, cell state indexed by worker number
     hiddens = {}
     for worker in range(args.num_workers):
         hiddens[str(worker)+'h'] = model.init_hidden()
@@ -82,52 +82,30 @@ def run_epoch(model, data, is_train=False):
         inputs_batch = get_batch(inputs, model.batch_size, batch_idx)
         targets_batch = get_batch(targets, model.batch_size, batch_idx).reshape(-1)
 
-        # with open(str(args.num_workers)+'inp'+str(batch_idx), 'wb') as f:
-        #     torch.save(inputs_batch, f)
-
-
-        # targets_batch = targets_batch.t().contiguous().reshape(-1)
-
-        # with open(str(args.num_workers)+'targ'+str(batch_idx), 'wb') as f:
-        #     torch.save(targets_batch, f)
-
         hidden = repackage_hidden((hiddens[str(worker_num)+'h'], hiddens[str(worker_num)+'c']))
         outputs, hidden = model(inputs_batch, hidden)
-        hiddens[str(worker_num)+'h'] = torch.clone(hidden[0]).detach()
-        hiddens[str(worker_num)+'c'] = torch.clone(hidden[1]).detach()
-
-        # with open(str(args.num_workers)+'outp'+str(batch_idx), 'wb') as f:
-        #     torch.save(outputs, f)
+        hiddens[str(worker_num)+'h'] = torch.clone(truncate(hidden[0], 10)).detach()
+        hiddens[str(worker_num)+'c'] = torch.clone(truncate(hidden[1], 10)).detach()
 
         loss = criterion(outputs.view(-1, vocab_size), targets_batch)
         loss = loss * model.batch_size
         costs += loss.item()
 
-        if worker_num == 0:
-            print(np.exp(costs / (args.batch_size_train*(batch_idx+1))))
-
-        # with open(str(args.num_workers)+'loss'+str(batch_idx), 'wb') as f:
-        #     torch.save(loss.item(), f)
-
         if is_train:
-            # clear leaf nodes in graph, backward pass,
-            # clip, compress and save grads
-            # model.zero_grad()
+            # clear leaf nodes in graph, backward pass, compress and save grads
+            # no clipping as this is not a linear operator (for grad summing purposes)
+            model.zero_grad()
             loss.backward()
-
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            # optimizer.compress_step(iter_num % args.num_workers)  # pass the worker number, for memory
+            optimizer.compress_step(worker_num)  # pass the worker number, for memory
 
             # step 'master model' once we have passed through n-workers' worth
             if worker_num == 0:
                 optimizer.step()
-                # with open(str(args.num_workers), 'wb') as f:
-                #     torch.save(next(model.parameters()).grad, f)
-                model.zero_grad()
+                costs = round(costs, 6)
 
         # log progress, not to wandb though
-        if batch_idx % args.log_interval == 0 and batch_idx > 0:
-            print('epoch progress {:.3f}%'.format(
+        if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:
+            print('\nepoch progress {:.3f}%\n'.format(
                 batch_idx * 100.0 / (epoch_size*args.num_workers)))
 
     loss_per_batch = costs / args.batch_size_train
@@ -140,10 +118,11 @@ if __name__ == "__main__":
     # define device and settings
     ###############################################################################
 
+    # define the compression and residual saving techniques
     compressor = compression_chooser(args.compression)
     memory = memory_chooser(args.memory)
 
-    # Set the random seed manually for reproducibility.
+    # Set the random seed manually for reproducibility, and device
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
@@ -184,19 +163,17 @@ if __name__ == "__main__":
         wandb.init(project=args.project_name, reinit=True)
         wandb.watch(model)
 
-    print("Number of model parameters:")
-    print(sum(p.numel() for p in model.parameters()))
     print("Number of trainable model parameters:")
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    lr = args.initial_lr / args.batch_size_train  # maybe take this out if dividing gradient in custom opt
+    lr = args.initial_lr / args.batch_size_train  # instead of gradient averaging
     lr_decay_base = 1 / 1.15
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss(reduction='mean')  # mean reduction i.e. sum over (seq_length * batch_size)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    # optimizer = DistributedSGD(optimizer, model.named_parameters(),
-    #                            args.num_workers, compressor, memory)
+    optimizer = DistributedSGD(optimizer, model.named_parameters(),
+                               args.num_workers, compressor, memory)
 
     ###############################################################################
     # run training and save model
