@@ -1,7 +1,7 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 30 \
---num_workers 1 \
+--hidden_size 400 \
+--num_workers 2 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 64 \
@@ -9,8 +9,8 @@ python -u main.py \
 --dropout_prob 0.0 \
 --tie_weights \
 --seed 1111 \
---memory 'residual' \
---compression 'topk' \
+--memory 'none' \
+--compression 'none' \
 --project_name 'hmm' \
 
 

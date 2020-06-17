@@ -88,7 +88,7 @@ def run_epoch(model, data, is_train=False):
         hiddens[str(worker_num)+'c'] = torch.clone(truncate(hidden[1], 15)).detach()
 
         loss = criterion(outputs.view(-1, vocab_size), targets_batch)
-        loss = loss * model.batch_size
+        loss = loss / args.num_workers
         costs += loss.item()
 
         if is_train:
@@ -102,15 +102,14 @@ def run_epoch(model, data, is_train=False):
             if worker_num == 0:
                 optimizer.step()
                 costs = round(costs, 6)  # round off floating point errors
-                print(np.exp(costs / (args.batch_size_train*((batch_idx+1)/args.num_workers))))
+                print(np.exp(costs / ((batch_idx+1)/args.num_workers)))
 
         # log progress, not to wandb though
         if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:
             print('\nepoch progress {:.3f}%\n'.format(
                 batch_idx * 100.0 / (epoch_size*args.num_workers)))
 
-    loss_per_batch = costs / args.batch_size_train
-    return np.exp(loss_per_batch / epoch_size)
+    return np.exp(costs / epoch_size)
 
 
 if __name__ == "__main__":
