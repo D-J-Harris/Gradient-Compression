@@ -8,19 +8,26 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def batchify(data, device, bsz):
+def batchify(data, device, args):
     """Cleanly divide data source into batches."""
-    nbatch = data.size(0) // bsz
+    nseq = (data.size(0) - 1) // args.seq_length
+
     # trim off any extra elements that wouldn't cleanly fit (remainders)
-    data = data.narrow(0, 0, nbatch * bsz)
-    data = data.view(bsz, -1).t().contiguous()
-    return data.to(device)
+    x = data.narrow(0, 0, args.seq_length * nseq)
+    x = x.view(-1, args.seq_length)
+    x = x.long()
+
+    y = data.narrow(0, 1, args.seq_length * nseq)
+    y = y.view(-1, args.seq_length)
+    y = y.long()
+
+    return x.to(device), y.to(device)
 
 
-def get_batch(args, source, batch_idx):
-    """Returns the batch starting from position i."""
-    step_start = batch_idx * args.num_steps
-    seq_len = min(args.num_steps, len(source) - 1 - step_start)
-    data = source[step_start:step_start+seq_len]
-    target = source[step_start+1:step_start+1+seq_len].view(-1)
-    return data, target
+def get_batch(source, batch_size, batch_idx):
+    """Returns the batch starting from position batch_idx."""
+
+    start = batch_size * batch_idx
+    end = batch_size * (batch_idx+1)
+    data = source[start:end].t().contiguous()
+    return data

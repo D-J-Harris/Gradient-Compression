@@ -41,7 +41,7 @@ class _DistributedSGD(Optimizer):
         named_param_ids = {id(v) for k, v in named_parameters}
         unnamed_param_ids = all_param_ids - named_param_ids
         if len(unnamed_param_ids):
-            raise ValueError('named_parameters was specified, but one or more model '
+            raise ValueError('named_parameters was specified, but 2 or more model '
                              'parameters were not named. Python object ids: '
                              '%s' % ', '.join(str(id) for id in unnamed_param_ids))
 

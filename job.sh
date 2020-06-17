@@ -1,18 +1,17 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 30 \
---num_workers 4 \
---num_steps 35 \
+--num_workers 2 \
+--seq_length 35 \
 --num_layers 2 \
 --batch_size_train 64 \
 --num_epochs 10 \
---initial_lr 10.0 \
---dropout_prob 0.5 \
+--dropout_prob 0.0 \
 --tie_weights \
 --seed 1111 \
 --memory 'none' \
 --compression 'none' \
---project_name 'default' \
+--project_name 'hmm' \
 
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags

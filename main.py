@@ -1,9 +1,7 @@
 import wandb
-import random
 import argparse
 import numpy as np
 
-import torch
 import torch.nn
 import torch.nn as nn
 
@@ -22,7 +20,7 @@ parser.add_argument('--hidden_size', type=int, default=250,
                     help='size of word embeddings/hidden size LSTM')
 parser.add_argument('--num_workers', type=int, default=1,
                     help='number of workers simulated')
-parser.add_argument('--num_steps', type=int, default=35,
+parser.add_argument('--seq_length', type=int, default=35,
                     help='backpropagation through time parameter')
 parser.add_argument('--num_layers', type=int, default=2,
                     help='number of LSTM layers (>1 for dropout)')
@@ -66,44 +64,74 @@ def run_epoch(model, data, is_train=False):
     else:
         model.eval()
 
-    hidden = model.init_hidden()
-    costs = [0]*args.num_workers
-    iter_num = 0
+    # hidden in positive indices, context in negative indices
+    hiddens = {}
+    for worker in range(args.num_workers):
+        hiddens[str(worker)+'h'] = model.init_hidden()
+        hiddens[str(worker) + 'c'] = model.init_hidden()
+    costs = 0.0
 
-    epoch_size = data.size(0) // model.num_steps
+    inputs, targets = data
+    epoch_size = data[0].size(0) // args.batch_size_train  # this is the 1worker batch size
     # loop over data in batches of sequence length defined by bptt parameter
     # random sample of batch_idxs for implicit shuffling (helps with num_workers > 1)
-    for batch_idx in random.sample(range(epoch_size),epoch_size):
+    for batch_idx in range(epoch_size * args.num_workers):
+        worker_num = (batch_idx+1) % args.num_workers
 
-        inputs, targets = get_batch(args, data, batch_idx)
+        # both in dims seq_length * batches
+        inputs_batch = get_batch(inputs, model.batch_size, batch_idx)
+        targets_batch = get_batch(targets, model.batch_size, batch_idx).reshape(-1)
 
-        hidden = repackage_hidden(hidden)
-        outputs, hidden = model(inputs, hidden)
+        # with open(str(args.num_workers)+'inp'+str(batch_idx), 'wb') as f:
+        #     torch.save(inputs_batch, f)
 
-        # add/divide by num_steps is for weighting purposes
-        loss = criterion(outputs.view(-1, vocab_size), targets)
-        costs[iter_num % args.num_workers] += loss.item()
-        iter_num += 1
+
+        # targets_batch = targets_batch.t().contiguous().reshape(-1)
+
+        # with open(str(args.num_workers)+'targ'+str(batch_idx), 'wb') as f:
+        #     torch.save(targets_batch, f)
+
+        hidden = repackage_hidden((hiddens[str(worker_num)+'h'], hiddens[str(worker_num)+'c']))
+        outputs, hidden = model(inputs_batch, hidden)
+        hiddens[str(worker_num)+'h'] = torch.clone(hidden[0]).detach()
+        hiddens[str(worker_num)+'c'] = torch.clone(hidden[1]).detach()
+
+        # with open(str(args.num_workers)+'outp'+str(batch_idx), 'wb') as f:
+        #     torch.save(outputs, f)
+
+        loss = criterion(outputs.view(-1, vocab_size), targets_batch)
+        loss = loss * model.batch_size
+        costs += loss.item()
+
+        if worker_num == 0:
+            print(np.exp(costs / (args.batch_size_train*(batch_idx+1))))
+
+        # with open(str(args.num_workers)+'loss'+str(batch_idx), 'wb') as f:
+        #     torch.save(loss.item(), f)
 
         if is_train:
             # clear leaf nodes in graph, backward pass,
             # clip, compress and save grads
-            model.zero_grad()
+            # model.zero_grad()
             loss.backward()
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            optimizer.compress_step(iter_num % args.num_workers)  # pass the worker number, for memory
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+            # optimizer.compress_step(iter_num % args.num_workers)  # pass the worker number, for memory
 
             # step 'master model' once we have passed through n-workers' worth
-            if (iter_num + 1) % model.num_workers == 0:
+            if worker_num == 0:
                 optimizer.step()
+                # with open(str(args.num_workers), 'wb') as f:
+                #     torch.save(next(model.parameters()).grad, f)
+                model.zero_grad()
 
         # log progress, not to wandb though
         if batch_idx % args.log_interval == 0 and batch_idx > 0:
             print('epoch progress {:.3f}%'.format(
-                iter_num * 100.0 / epoch_size))
+                batch_idx * 100.0 / (epoch_size*args.num_workers)))
 
-    return np.exp(np.mean(costs) / (iter_num / args.num_workers))
+    loss_per_batch = costs / args.batch_size_train
+    return np.exp(loss_per_batch / epoch_size)
 
 
 if __name__ == "__main__":
@@ -116,7 +144,6 @@ if __name__ == "__main__":
     memory = memory_chooser(args.memory)
 
     # Set the random seed manually for reproducibility.
-    random.seed(args.seed)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     if torch.cuda.is_available():
@@ -139,16 +166,17 @@ if __name__ == "__main__":
     print("Valid: ", len(corpus.valid))
     print("Test:  ", len(corpus.test))
 
-    train_data = batchify(corpus.train, device, args.batch_size_train)
-    val_data = batchify(corpus.valid, device, args.batch_size_train)
-    test_data = batchify(corpus.test, device, args.batch_size_test)
+    train_data = batchify(corpus.train, device, args)
+    val_data = batchify(corpus.valid, device, args)
+    test_data = batchify(corpus.test, device, args)
 
     vocab_size = len(corpus.dictionary)
     print("Vocab size:\n{}".format(vocab_size))
-    model = LSTM(embedding_dim=args.hidden_size, num_steps=args.num_steps,
-                 batch_size=args.batch_size_train, num_workers=args.num_workers,
-                 vocab_size=vocab_size, num_layers=args.num_layers,
+    model = LSTM(embedding_dim=args.hidden_size, seq_length=args.seq_length,
+                 batch_size=args.batch_size_train // args.num_workers,
+                 num_workers=args.num_workers, vocab_size=vocab_size, num_layers=args.num_layers,
                  dropout_prob=args.dropout_prob, tie_weights=args.tie_weights)
+    model.double()
     model.to(device)
 
     # initialize weights and biases for metric tracking
@@ -161,14 +189,14 @@ if __name__ == "__main__":
     print("Number of trainable model parameters:")
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    lr = args.initial_lr
+    lr = args.initial_lr / args.batch_size_train  # maybe take this out if dividing gradient in custom opt
     lr_decay_base = 1 / 1.15
-    m_flat_lr = 10.0  # number of epochs before lr decay
+    m_flat_lr = 14.0  # number of epochs before lr decay
 
-    criterion = nn.CrossEntropyLoss()  # reduction is mean i.e. divide by num_steps * batch_size
+    criterion = nn.CrossEntropyLoss(reduction='mean')  # mean reduction i.e. sum over (seq_length * batch_size)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-    optimizer = DistributedSGD(optimizer, model.named_parameters(),
-                               args.num_workers, compressor, memory)
+    # optimizer = DistributedSGD(optimizer, model.named_parameters(),
+    #                            args.num_workers, compressor, memory)
 
     ###############################################################################
     # run training and save model
@@ -182,13 +210,13 @@ if __name__ == "__main__":
             g['lr'] = lr
 
         # train, log, val, log
-        # train_p = run_epoch(model, train_data, is_train=True)
-        # print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
+        train_p = run_epoch(model, train_data, is_train=True)
+        print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
         val_p = run_epoch(model, val_data)
         print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
 
         if args.wandb:
-            # wandb.log({f'train perplexity': train_p})
+            wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
 
     # testing, set new batch size (to 1)

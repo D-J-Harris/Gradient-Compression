@@ -4,7 +4,6 @@ from memory.memory import Memory
 class ResidualMemory(Memory):
     def __init__(self, beta=1.0, gamma=1.0):
         super().__init__(cumulative_grads={}, residuals={})
-        self.residuals = {}
         self.beta = beta
         self.gamma = gamma
 

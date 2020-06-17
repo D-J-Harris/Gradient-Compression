@@ -5,11 +5,11 @@ import torch.nn as nn
 
 class LSTM(nn.Module):
   """Simple LSMT-based language model"""
-  def __init__(self, embedding_dim, num_steps, batch_size, num_workers,
+  def __init__(self, embedding_dim, seq_length, batch_size, num_workers,
                vocab_size, num_layers, dropout_prob, tie_weights):
     super(LSTM, self).__init__()
     self.embedding_dim = embedding_dim
-    self.num_steps = num_steps
+    self.seq_length = seq_length
     self.batch_size = batch_size
     self.num_workers = num_workers
     self.vocab_size = vocab_size
@@ -38,8 +38,7 @@ class LSTM(nn.Module):
   def init_hidden(self):
     """Initialise the hidden weights in LSTM."""
     weight = next(self.parameters()).data
-    return (weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_(),
-            weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_())
+    return weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()
 
 
   def forward(self, inputs, hidden):
@@ -53,8 +52,8 @@ class LSTM(nn.Module):
     else:
       logits = self.decoder(lstm_out.view(-1, self.embedding_dim))
 
-    num_steps = lstm_out.size(0)
-    return logits.view(num_steps, self.batch_size, self.vocab_size), hidden
+    seq_length = lstm_out.size(0)
+    return logits.view(seq_length, self.batch_size, self.vocab_size), hidden
 
 
 def repackage_hidden(h):
