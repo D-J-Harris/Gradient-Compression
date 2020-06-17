@@ -84,8 +84,8 @@ def run_epoch(model, data, is_train=False):
 
         hidden = repackage_hidden((hiddens[str(worker_num)+'h'], hiddens[str(worker_num)+'c']))
         outputs, hidden = model(inputs_batch, hidden)
-        hiddens[str(worker_num)+'h'] = torch.clone(truncate(hidden[0], 10)).detach()
-        hiddens[str(worker_num)+'c'] = torch.clone(truncate(hidden[1], 10)).detach()
+        hiddens[str(worker_num)+'h'] = torch.clone(truncate(hidden[0], 15)).detach()
+        hiddens[str(worker_num)+'c'] = torch.clone(truncate(hidden[1], 15)).detach()
 
         loss = criterion(outputs.view(-1, vocab_size), targets_batch)
         loss = loss * model.batch_size
@@ -102,6 +102,7 @@ def run_epoch(model, data, is_train=False):
             if worker_num == 0:
                 optimizer.step()
                 costs = round(costs, 6)
+                print(np.exp(costs / (args.batch_size_train*((batch_idx+1)/args.num_workers))))
 
         # log progress, not to wandb though
         if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:

@@ -88,7 +88,7 @@ class _DistributedSGD(Optimizer):
                     d_p = self.compression.decompress(d_ps, ctx)
                 # if learning rate doesnt, then divide by num_workers here
 
-                d_p = truncate(d_p, 10)  # truncate from float64, like with outputs and hiddens
+                d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
                 p.add_(d_p, alpha=-group['lr'])
 
         self.memory.cumulative_grads = {}

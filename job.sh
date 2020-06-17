@@ -1,7 +1,7 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 30 \
---num_workers 4 \
+--num_workers 2 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 64 \
@@ -12,7 +12,7 @@ python -u main.py \
 --memory 'none' \
 --compression 'none' \
 --project_name 'hmm' \
-2>&1 | tee quadquad.log
+2>&1 | tee double_to_float.log
 
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags
