@@ -9,7 +9,7 @@ class ResidualMemory(Memory):
 
     def compensate(self, tensor, name, worker):
         """Update the tensor with the residuals."""
-        if name in self.residuals:
+        if name+str(worker) in self.residuals:
             tensor = self.beta * self.residuals[name+str(worker)] + self.gamma * tensor
         return tensor
 

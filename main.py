@@ -101,7 +101,7 @@ def run_epoch(model, data, is_train=False):
             # step 'master model' once we have passed through n-workers' worth
             if worker_num == 0:
                 optimizer.step()
-                costs = round(costs, 6)
+                costs = round(costs, 6)  # round off floating point errors
                 print(np.exp(costs / (args.batch_size_train*((batch_idx+1)/args.num_workers))))
 
         # log progress, not to wandb though

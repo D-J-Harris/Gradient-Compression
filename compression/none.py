@@ -4,7 +4,6 @@ class NoneCompression(Compressor):
     """Default no-op compression."""
     def __init__(self):
         super().__init__()
-        self.is_sparse = False
 
     # returns tensors and context
     # where tensors = tensor, indices (for sparse)

@@ -88,12 +88,11 @@ class _DistributedSGD(Optimizer):
                     d_p = self.compression.decompress(d_ps, ctx)
                 # if learning rate doesnt, then divide by num_workers here
 
-                d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
+                if not self.compression.is_quant:
+                    d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
                 p.add_(d_p, alpha=-group['lr'])
 
         self.memory.cumulative_grads = {}
-        self.memory.residuals = {}
-
         return loss
 
 
@@ -113,10 +112,11 @@ class _DistributedSGD(Optimizer):
 
             for p in group['params']:
                 name = self.parameter_names.get(p)
-
                 if p.grad is None:
                     continue
                 d_p = p.grad
+
+                # apply hyperparameter adjustments
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)
                 if momentum != 0:
@@ -125,7 +125,7 @@ class _DistributedSGD(Optimizer):
                         buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
                     else:
                         buf = param_state['momentum_buffer']
-                        buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+                        buf.mul_(momentum).add_(d_p, alpha=1-dampening)
                     if nesterov:
                         d_p = d_p.add(buf, alpha=momentum)
                     else:

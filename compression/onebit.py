@@ -4,6 +4,10 @@ from compression.compression import Compressor
 
 class OneBitCompressor(Compressor):
 
+    def __init__(self):
+        super().__init__()
+        self.is_quant = True
+
     def compress(self, tensor, name):
         shape = tensor.size()
         tensor = tensor.flatten()
