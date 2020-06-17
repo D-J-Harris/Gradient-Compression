@@ -34,7 +34,7 @@ parser.add_argument('--dropout_prob', type=float, default=0.0,
                     help='dropout probability, regularisation')
 parser.add_argument('--tie_weights', action='store_true',
                     help='tie weights of in_ and out_embeddings')
-parser.add_argument('--initial_lr', type=float, default=20.0,
+parser.add_argument('--initial_lr', type=float, default=5.0,
                     help='initial learning rate')
 parser.add_argument('--save', type=str,  default='models_logs/lm_model.pt',
                     help='path to save the final model')
@@ -71,23 +71,21 @@ def run_epoch(model, data, is_train=False):
         hiddens[str(worker) + 'c'] = model.init_hidden()
     costs = 0.0
 
-    inputs, targets = data
-    epoch_size = data[0].size(0) // args.batch_size_train  # this is the 1worker batch size
+    epoch_size = data.size(0) // args.seq_length  # no. sequences that fit
     # loop over data in batches of sequence length defined by bptt parameter
     # random sample of batch_idxs for implicit shuffling (helps with num_workers > 1)
     for batch_idx in range(epoch_size * args.num_workers):
         worker_num = (batch_idx+1) % args.num_workers
 
         # both in dims seq_length * batches
-        inputs_batch = get_batch(inputs, model.batch_size, batch_idx)
-        targets_batch = get_batch(targets, model.batch_size, batch_idx).reshape(-1)
+        inputs, targets = get_batch(data, batch_idx//args.num_workers, worker_num, args)
 
         hidden = repackage_hidden((hiddens[str(worker_num)+'h'], hiddens[str(worker_num)+'c']))
-        outputs, hidden = model(inputs_batch, hidden)
+        outputs, hidden = model(inputs, hidden)
         hiddens[str(worker_num)+'h'] = torch.clone(truncate(hidden[0], 15)).detach()
         hiddens[str(worker_num)+'c'] = torch.clone(truncate(hidden[1], 15)).detach()
 
-        loss = criterion(outputs.view(-1, vocab_size), targets_batch)
+        loss = criterion(outputs.view(-1, vocab_size), targets)
         loss = loss / args.num_workers
         costs += loss.item()
 
@@ -170,7 +168,7 @@ if __name__ == "__main__":
     lr_decay_base = 1 / 1.15
     m_flat_lr = 14.0  # number of epochs before lr decay
 
-    criterion = nn.CrossEntropyLoss(reduction='mean')  # mean reduction i.e. sum over (seq_length * batch_size)
+    criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr)
     optimizer = DistributedSGD(optimizer, model.named_parameters(),
                                args.num_workers, compressor, memory)
