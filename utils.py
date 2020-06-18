@@ -28,9 +28,3 @@ def get_batch(args, source, i, worker):
     data_split = data[:,(bsz // args.num_workers) * worker: (bsz // args.num_workers) * (worker + 1)]
     target_split = target[:,(bsz // args.num_workers) * worker: (bsz // args.num_workers) * (worker + 1)].reshape(-1)
     return data_split, target_split
-
-
-def truncate(tensor, n_decimals):
-    """Returns a tensor truncated to n_decimal places.
-    Useful for ensuring equal values up to float precision"""
-    return (tensor * 10 ** n_decimals).round() / (10 ** n_decimals)

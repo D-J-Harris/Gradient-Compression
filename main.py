@@ -9,7 +9,7 @@ import torch.nn as nn
 import data_load
 from model import LSTM
 from optim import DistributedSGD
-from utils import repackage_hidden, batchify, get_batch, truncate
+from utils import repackage_hidden, batchify, get_batch
 
 from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
@@ -67,10 +67,9 @@ def run_epoch(model, data, is_train=False):
 
     # hidden state, cell state indexed by worker number
     hiddens = {}
-    hiddens[str(0) + 'h'] = next(model.parameters()).data.new(2, args.batch_size_train//args.num_workers, args.hidden_size).zero_()
-    hiddens[str(0) + 'c'] = next(model.parameters()).data.new(2, args.batch_size_train//args.num_workers, args.hidden_size).zero_()
-    hiddens[str(1) + 'h'] = next(model.parameters()).data.new(2, args.batch_size_train//args.num_workers, args.hidden_size).zero_()
-    hiddens[str(1) + 'c'] = next(model.parameters()).data.new(2, args.batch_size_train//args.num_workers, args.hidden_size).zero_()
+    for worker in range(args.num_workers):
+        hiddens[str(worker) + 'h'] = model.init_hidden()
+        hiddens[str(worker) + 'c'] = model.init_hidden()
 
     costs, iter_cost = 0.0, 0.0
     iters = 0
@@ -83,21 +82,11 @@ def run_epoch(model, data, is_train=False):
 
         inputs, targets = get_batch(args, data, seq_start, worker_num)
 
-        # with open(str(args.num_workers)+'inp'+str(batch_idx), 'wb') as f:
-        #     torch.save(inputs, f)
-
         hidden = repackage_hidden((hiddens[str(worker_num) + 'h'], hiddens[str(worker_num) + 'c']))
         outputs, hidden_new = model(inputs, hidden)
 
-        # with open(str(args.num_workers)+'outp'+str(batch_idx), 'wb') as f:
-        #     torch.save(outputs, f)
-
-        hiddens[str(worker_num) + 'h'] = torch.clone(truncate(hidden_new[0], 6)).detach()
-        hiddens[str(worker_num) + 'c'] = torch.clone(truncate(hidden_new[1], 6)).detach()
-
-        # if batch_idx==1 or batch_idx==3:
-            # with open(str(args.num_workers)+'hiddens'+str(batch_idx), 'wb') as f:
-            #     torch.save(hiddens, f)
+        hiddens[str(worker_num) + 'h'] = torch.clone(hidden_new[0].float().double()).detach()
+        hiddens[str(worker_num) + 'c'] = torch.clone(hidden_new[1].float().double()).detach()
 
         # add/divide by num_steps is for weighting purposes
         loss = criterion(outputs.view(-1, vocab_size), targets)
@@ -115,12 +104,11 @@ def run_epoch(model, data, is_train=False):
             if (batch_idx+1) % model.num_workers == 0:
 
                 optimizer.step()
-                print(round(iter_cost, 6))
                 costs += round(iter_cost, 6)
                 iter_cost = 0
 
         # log progress, not to wandb though
-        if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:
+        if iters % args.log_interval == 0 and batch_idx > 0:
             print('epoch progress {:.3f}%  -->  running perplexity {:8.2f}'.format(
                 batch_idx * 100.0 / (epoch_size * args.num_workers),
                 np.exp(costs / iters)))
@@ -184,7 +172,7 @@ if __name__ == "__main__":
     print("Number of trainable model parameters:")
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    lr = args.initial_lr / args.num_workers
+    lr = args.initial_lr
     lr_decay_base = 1 / 1.2
     m_flat_lr = 6.0  # number of epochs before lr decay
 
