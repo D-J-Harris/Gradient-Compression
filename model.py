@@ -37,8 +37,7 @@ class LSTM(nn.Module):
   def init_hidden(self):
     """Initialise the hidden weights in LSTM."""
     weight = next(self.parameters()).data
-    return (weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_(),
-            weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_())
+    return weight.new(self.num_layers, self.batch_size, self.embedding_dim).zero_()
 
 
   def forward(self, inputs, hidden):

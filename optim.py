@@ -2,6 +2,7 @@
 ## additionally from https://horovod.readthedocs.io/en/latest/pytorch.html
 
 import torch
+from utils import truncate
 from torch.optim.optimizer import Optimizer
 
 from memory.none import NoneMemory
@@ -41,14 +42,14 @@ class _DistributedSGD(Optimizer):
         named_param_ids = {id(v) for k, v in named_parameters}
         unnamed_param_ids = all_param_ids - named_param_ids
         if len(unnamed_param_ids):
-            raise ValueError('named_parameters was specified, but one or more model '
+            raise ValueError('named_parameters was specified, but 2 or more model '
                              'parameters were not named. Python object ids: '
                              '%s' % ', '.join(str(id) for id in unnamed_param_ids))
 
-        self._parameter_names = {v: k for k, v in sorted(named_parameters)}
+        self.parameter_names = {v: k for k, v in sorted(named_parameters)}
         self.num_workers = num_workers
-        self._compression = compression
-        self._memory = memory
+        self.compression = compression
+        self.memory = memory
 
 
     @staticmethod
@@ -74,20 +75,29 @@ class _DistributedSGD(Optimizer):
             with torch.enable_grad():
                 loss = closure()
 
-        for group in self.param_groups:
-            for i, p in enumerate(group['params']):
-                d_p_comp = self._memory.cumulative_grads[i]
-                ctx = self._memory.cumulative_grads[-i]
-                d_p_decomp = self._compression.decompress(d_p_comp, ctx)
-                d_p_decomp = d_p_decomp / self.num_workers  # as per DGC paper
-                p.add_(d_p_decomp, alpha=-group['lr'])
-        self._memory.cumulative_grads = {}
 
+        for group in self.param_groups:
+            for p in group['params']:
+                name = self.parameter_names.get(p)
+
+                d_p = self.memory.cumulative_grads[name]
+                ctx = self.memory.cumulative_grads[name+'ctx']
+
+                if not self.compression.is_sparse:
+                    d_ps = d_p, None  # add fake indices
+                    d_p = self.compression.decompress(d_ps, ctx)
+                # if learning rate doesnt, then divide by num_workers here
+
+                if not self.compression.is_quant:
+                    d_p = truncate(d_p, 6).float() # truncate from float64, like with outputs and hiddens
+                p.add_(d_p, alpha=-group['lr'])
+
+        self.memory.cumulative_grads = {}
         return loss
 
 
     @torch.no_grad()
-    def compress_step(self):
+    def compress_step(self, worker):
         """
         accumulates the compressed gradients as it goes along,
         each step of this method reflects a worker compressing its
@@ -100,11 +110,13 @@ class _DistributedSGD(Optimizer):
             dampening = group['dampening']
             nesterov = group['nesterov']
 
-            for i, p in enumerate(group['params']):
-                name = self._parameter_names.get(p)
+            for p in group['params']:
+                name = self.parameter_names.get(p)
                 if p.grad is None:
                     continue
                 d_p = p.grad
+
+                # apply hyperparameter adjustments
                 if weight_decay != 0:
                     d_p = d_p.add(p, alpha=weight_decay)
                 if momentum != 0:
@@ -113,24 +125,31 @@ class _DistributedSGD(Optimizer):
                         buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
                     else:
                         buf = param_state['momentum_buffer']
-                        buf.mul_(momentum).add_(d_p, alpha=1 - dampening)
+                        buf.mul_(momentum).add_(d_p, alpha=1-dampening)
                     if nesterov:
                         d_p = d_p.add(buf, alpha=momentum)
                     else:
                         d_p = buf
 
                 # memory compensate, grad compress, then memory update
-                d_p = self._memory.compensate(d_p, name)
-                d_p_comp, ctx = self._compression.compress(d_p, name)
-                self._memory.update(d_p, name, self._compression, d_p_comp, ctx)
+                d_p = self.memory.compensate(d_p, name, worker)
+                d_p_comp, ctx = self.compression.compress(d_p, name)
+                self.memory.update(d_p, name, worker, self.compression, d_p_comp, ctx)
 
-                # i.e. if first worker, initialise dict of cumulative grads
-                # negative index stores context for that parameter
-                if i not in self._memory.cumulative_grads:
-                    self._memory.cumulative_grads[i] = d_p_comp
-                    self._memory.cumulative_grads[-i] = ctx
+                # if sparse, then decompress before accumulating
+                # else, just take the tensor (indices is None)
+                if self.compression.is_sparse:
+                    d_p_comp = self.compression.decompress(d_p_comp, ctx)
                 else:
-                    self._memory.cumulative_grads[i] += d_p_comp
+                    d_p_comp = d_p_comp[0]
+
+                # if first worker, initialise dict of cumulative grads
+                if name not in self.memory.cumulative_grads:
+                    # ctx may need cloning in future too
+                    self.memory.cumulative_grads[name] = torch.clone(d_p_comp).detach()
+                    self.memory.cumulative_grads[name+'ctx'] = ctx
+                else:
+                    self.memory.cumulative_grads[name] += torch.clone(d_p_comp).detach()
 
 
 def DistributedSGD(optimizer, named_parameters=None, num_workers=1,

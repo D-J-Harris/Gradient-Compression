@@ -24,6 +24,7 @@ class RandomKCompressor(Compressor):
         super().__init__()
         self.global_step = 0
         self.compress_ratio = compress_ratio
+        self.is_sparse = True
 
     def compress(self, tensor, name):
         """Use Python Random libraries RNG to compress by generating a list of indices to be transmitted."""
