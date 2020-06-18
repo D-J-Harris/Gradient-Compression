@@ -1,13 +1,13 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 650 \
---num_workers 2 \
+--hidden_size 400 \
+--num_workers 1 \
 --num_steps 35 \
 --num_layers 2 \
 --batch_size_train 50 \
 --num_epochs 1 \
 --initial_lr 5.0 \
---dropout_prob 0.5 \
+--dropout_prob 0.0 \
 --seed 1111 \
 --memory 'none' \
 --compression 'none' \

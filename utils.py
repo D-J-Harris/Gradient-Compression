@@ -17,9 +17,10 @@ def batchify(data, device, bsz):
     return data.to(device)
 
 
-def get_batch(args, source, i):
+def get_batch(args, source, i, worker_num):
     """Returns the batch starting from position i."""
     seq_len = min(args.num_steps, len(source) - 1 - i)
     data = source[i:i+seq_len]
-    target = source[i+1:i+1+seq_len].view(-1)
-    return data, target
+    target = source[i+1:i+1+seq_len]
+    return torch.chunk(data, chunks=args.num_workers, dim=1)[worker_num],\
+           torch.chunk(target, chunks=args.num_workers, dim=1)[worker_num].reshape(-1)

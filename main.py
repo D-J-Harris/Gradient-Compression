@@ -65,14 +65,18 @@ def run_epoch(model, data, is_train=False):
     else:
         model.eval()
 
-    # epoch_size = ((len(data) // model.batch_size) - 1) // model.num_steps
     hidden = model.init_hidden()
     costs = 0.0
     iters = 0
 
+    epoch_size = data.size(0) // args.num_steps  # no. sequences that fit
     # loop over data in batches of sequence length defined by bptt parameter
-    for batch, i in enumerate(range(0, data.size(0) - 1, args.num_steps)):
-        inputs, targets = get_batch(args, data, i)
+    # random sample of batch_idxs for implicit shuffling (helps with num_workers > 1)
+    for batch_idx in range(epoch_size * args.num_workers):
+        worker_num = batch_idx % args.num_workers
+        seq_start = batch_idx // args.num_workers
+
+        inputs, targets = get_batch(args, data, seq_start, worker_num)
 
         hidden = repackage_hidden(hidden)
         outputs, hidden = model(inputs, hidden)
@@ -89,16 +93,17 @@ def run_epoch(model, data, is_train=False):
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
-            optimizer.compress_step()
+            optimizer.compress_step(worker=worker_num)
 
             # step 'master model' once we have passed through n-workers' worth
-            if (batch+1) % model.num_workers == 0:
+            if (batch_idx+1) % model.num_workers == 0:
+                print(loss.item())
                 optimizer.step()
 
         # log in output, not to wandb though
-        if batch % args.log_interval == 0 and batch > 0:
+        if batch_idx % args.log_interval == 0 and batch_idx > 0:
             print('epoch progress {:.3f}%  -->  ppl {:8.2f}'.format(
-            i * 100.0 / data.size(0),
+            seq_start * 100.0 / data.size(0),
             np.exp(costs / iters)))
 
     return np.exp(costs / iters)
