@@ -40,7 +40,7 @@ parser.add_argument('--save', type=str,  default='models_logs/lm_model.pt',
                     help='path to save the final model')
 parser.add_argument('--cuda', action='store_true',
                     help='default use CUDA')
-parser.add_argument('--log-interval', type=int, default=50,
+parser.add_argument('--log-interval', type=int, default=100,
                     help='report interval for measuring epoch progress')
 parser.add_argument('--project_name', type=str, default="test_run",
                     help='project name for wandb instance')
@@ -98,16 +98,19 @@ def run_epoch(model, data, is_train=False):
 
             # step 'master model' once we have passed through n-workers' worth
             if worker_num == 0:
-                optimizer.step()
-                costs = round(costs, 6)  # round off floating point errors
-                print(np.exp(costs / ((batch_idx+1)/args.num_workers)))
+              optimizer.assign_grads()
+              torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+              optimizer.step()
+              # costs = round(costs, 6)  # round off floating point errors
+              # print(np.exp(costs / ((batch_idx+1)/args.num_workers)))
 
         # log progress, not to wandb though
         if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:
-            print('\nepoch progress {:.3f}%\n'.format(
+            print('epoch progress {:.3f}%'.format(
                 batch_idx * 100.0 / (epoch_size*args.num_workers)))
 
     return np.exp(costs / epoch_size)
+
 
 
 if __name__ == "__main__":
@@ -145,7 +148,7 @@ if __name__ == "__main__":
 
     train_data = batchify(corpus.train, device, args)
     val_data = batchify(corpus.valid, device, args)
-    test_data = batchify(corpus.test, device, args)
+    test_data = batchify(corpus.test, device, args, is_test=True)
 
     vocab_size = len(corpus.dictionary)
     print("Vocab size:\n{}".format(vocab_size))
@@ -153,7 +156,7 @@ if __name__ == "__main__":
                  batch_size=args.batch_size_train // args.num_workers,
                  num_workers=args.num_workers, vocab_size=vocab_size, num_layers=args.num_layers,
                  dropout_prob=args.dropout_prob, tie_weights=args.tie_weights)
-    model.double()
+    # model.double()
     model.to(device)
 
     # initialize weights and biases for metric tracking
@@ -164,7 +167,7 @@ if __name__ == "__main__":
     print("Number of trainable model parameters:")
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
-    lr = args.initial_lr / args.batch_size_train  # instead of gradient averaging
+    lr = args.initial_lr
     lr_decay_base = 1 / 1.15
     m_flat_lr = 14.0  # number of epochs before lr decay
 

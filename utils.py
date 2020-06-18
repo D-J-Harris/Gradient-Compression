@@ -8,15 +8,18 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-def batchify(data, device, args):
+def batchify(data, device, args, is_test=False):
     """Cleanly divide data source into batches."""
-    bsz = args.batch_size_train
+    if is_test:
+      bsz = args.batch_size_test
+    else:
+      bsz = args.batch_size_train
     nbatch = data.size(0)  // bsz
 
     # trim off any extra elements that wouldn't cleanly fit (remainders)
     x = data.narrow(0, 0, bsz * nbatch)
     x = x.view(bsz, -1).t().contiguous()
-    x = x.long()
+    # x = x.long()
 
     return x.to(device)
 
@@ -31,8 +34,3 @@ def get_batch(source, batch_idx, worker, args):
     data_split = data[:,(args.batch_size_train//args.num_workers) * worker: (args.batch_size_train//args.num_workers) * (worker+1)]
     target_split = target[:,(args.batch_size_train//args.num_workers) * worker: (args.batch_size_train//args.num_workers) * (worker+1)].reshape(-1)
     return data_split, target_split
-
-def truncate(tensor, n_decimals):
-    """Returns a tensor truncated to n_decimal places.
-    Useful for ensuring equal values up to float precision"""
-    return (tensor * 10 ** n_decimals).round() / (10 ** n_decimals)

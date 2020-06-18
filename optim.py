@@ -64,7 +64,7 @@ class _DistributedSGD(Optimizer):
 
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def assign_grads(self, closure=None):
         """Performs a single optimization step.
         Arguments:
             closure (callable, optional): A closure that reevaluates the model
@@ -80,7 +80,7 @@ class _DistributedSGD(Optimizer):
             for p in group['params']:
                 name = self.parameter_names.get(p)
 
-                d_p = self.memory.cumulative_grads[name]
+                d_p = self.memory.cumulative_grads[name].detach()
                 ctx = self.memory.cumulative_grads[name+'ctx']
 
                 if not self.compression.is_sparse:
@@ -88,8 +88,34 @@ class _DistributedSGD(Optimizer):
                     d_p = self.compression.decompress(d_ps, ctx)
                 # if learning rate doesnt, then divide by num_workers here
 
-                if not self.compression.is_quant:
-                    d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
+                # if not self.compression.is_quant:
+                #     d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
+                p.grad = d_p
+
+        self.memory.cumulative_grads = {}
+        return loss
+
+
+
+    @torch.no_grad()
+    def step(self, closure=None):
+        """Performs a single optimization step.
+        Arguments:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+
+        for group in self.param_groups:
+            for p in group['params']:
+
+                if p.grad is None:
+                    continue
+                d_p = torch.clone(p.grad).detach()
                 p.add_(d_p, alpha=-group['lr'])
 
         self.memory.cumulative_grads = {}
