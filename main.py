@@ -35,13 +35,13 @@ parser.add_argument('--dropout_prob', type=float, default=0.0,
                     help='dropout probability, regularisation')
 parser.add_argument('--tie_weights', action='store_true',
                     help='tie weights of in_ and out_embeddings')
-parser.add_argument('--initial_lr', type=float, default=20.0,
+parser.add_argument('--initial_lr', type=float, default=5.0,
                     help='initial learning rate')
 parser.add_argument('--save', type=str,  default='models_logs/lm_model.pt',
                     help='path to save the final model')
 parser.add_argument('--cuda', action='store_true',
                     help='default use CUDA')
-parser.add_argument('--log-interval', type=int, default=200,
+parser.add_argument('--log-interval', type=int, default=50,
                     help='report interval for measuring epoch progress')
 parser.add_argument('--project_name', type=str, default="test_run",
                     help='project name for wandb instance')
@@ -65,7 +65,12 @@ def run_epoch(model, data, is_train=False):
     else:
         model.eval()
 
-    hidden = model.init_hidden()
+    # hidden state, cell state indexed by worker number
+    hiddens = {}
+    for worker in range(args.num_workers):
+        hiddens[str(worker) + 'h'] = model.init_hidden()
+        hiddens[str(worker) + 'c'] = model.init_hidden()
+
     costs = 0.0
     iters = 0
 
@@ -78,13 +83,15 @@ def run_epoch(model, data, is_train=False):
 
         inputs, targets = get_batch(args, data, seq_start, worker_num)
 
-        hidden = repackage_hidden(hidden)
+        hidden = repackage_hidden((hiddens[str(worker_num) + 'h'], hiddens[str(worker_num) + 'c']))
         outputs, hidden = model(inputs, hidden)
+        hiddens[str(worker_num) + 'h'] = torch.clone(hidden[0]).detach()
+        hiddens[str(worker_num) + 'c'] = torch.clone(hidden[1]).detach()
 
         # add/divide by num_steps is for weighting purposes
         loss = criterion(outputs.view(-1, vocab_size), targets)
-        costs += loss.item() * model.num_steps
-        iters += model.num_steps
+        costs += (loss.item() / args.num_workers)
+        iters += (1 / args.num_workers)
 
         if is_train:
             # clear leaf nodes in graph, backward pass,
@@ -97,14 +104,13 @@ def run_epoch(model, data, is_train=False):
 
             # step 'master model' once we have passed through n-workers' worth
             if (batch_idx+1) % model.num_workers == 0:
-                print(loss.item())
                 optimizer.step()
 
-        # log in output, not to wandb though
-        if batch_idx % args.log_interval == 0 and batch_idx > 0:
-            print('epoch progress {:.3f}%  -->  ppl {:8.2f}'.format(
-            seq_start * 100.0 / data.size(0),
-            np.exp(costs / iters)))
+        # log progress, not to wandb though
+        if iters % args.log_interval == 0 and batch_idx > 0:
+            print('epoch progress {:.3f}%  -->  running perplexity {:8.2f}'.format(
+                batch_idx * 100.0 / (epoch_size * args.num_workers),
+                np.exp(costs / iters)))
 
     return np.exp(costs / iters)
 
@@ -148,9 +154,11 @@ if __name__ == "__main__":
     vocab_size = len(corpus.dictionary)
     print("Vocab size:\n{}".format(vocab_size))
     model = LSTM(embedding_dim=args.hidden_size, num_steps=args.num_steps,
-                 batch_size=args.batch_size_train, num_workers=args.num_workers,
+                 batch_size=args.batch_size_train // args.num_workers,
+                 num_workers=args.num_workers,
                  vocab_size=vocab_size, num_layers=args.num_layers,
                  dropout_prob=args.dropout_prob, tie_weights=args.tie_weights)
+    model.double()
     model.to(device)
 
     # initialize weights and biases for metric tracking

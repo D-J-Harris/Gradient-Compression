@@ -14,6 +14,7 @@ def batchify(data, device, bsz):
     # trim off any extra elements that wouldn't cleanly fit (remainders)
     data = data.narrow(0, 0, nbatch * bsz)
     data = data.view(bsz, -1).t().contiguous()
+    data.long()
     return data.to(device)
 
 
