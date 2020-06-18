@@ -199,6 +199,7 @@ if __name__ == "__main__":
 
     # testing, set new batch size (to 1)
     model.batch_size = args.batch_size_test
+    args.num_workers = 1
     test_p = run_epoch(model, test_data)
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
 
