@@ -200,6 +200,12 @@ if __name__ == "__main__":
     test_p = run_epoch(model, test_data)
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
 
+    print('Layer compression rates: ')
+    for name, ratio_sum in compressor.param_count.items():
+        print(f"{name}: compression ratio of "
+              f"{ratio_sum / ((train_data.size(0) // args.seq_length)*args.num_workers)}")
+
+
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
         wandb.log({f'dropout': args.dropout_prob})

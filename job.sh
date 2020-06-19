@@ -1,6 +1,6 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 300 \
+--hidden_size 100 \
 --num_workers 1 \
 --seq_length 35 \
 --num_layers 2 \
