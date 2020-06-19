@@ -5,6 +5,9 @@ class NoneCompression(Compressor):
     def __init__(self):
         super().__init__()
 
+    def __str__(self):
+        return "none_compression"
+
     # returns tensors and context
     # where tensors = tensor, indices (for sparse)
     def compress(self, tensor, name):

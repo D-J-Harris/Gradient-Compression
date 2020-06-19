@@ -108,7 +108,6 @@ def run_epoch(model, data, is_train=False):
     return np.exp(costs / epoch_size)
 
 
-
 if __name__ == "__main__":
 
     ###############################################################################
@@ -118,6 +117,8 @@ if __name__ == "__main__":
     # define the compression and residual saving techniques
     compressor = compression_chooser(args.compression)
     memory = memory_chooser(args.memory)
+    print("Using compression: ", str(compressor))
+    print("Using memory: ", str(memory))
 
     # Set the random seed manually for reproducibility, and device
     torch.manual_seed(args.seed)
@@ -205,6 +206,4 @@ if __name__ == "__main__":
         wandb.log({f'initial_lr': args.initial_lr})
         wandb.log({f'batch size': args.batch_size_train})
         wandb.log({f'tied_weights': args.tie_weights})
-        wandb.log({f'compression': args.compression})
-        wandb.log({f'memory': args.memory})
         wandb.log({f'hidden_size': args.hidden_size})

@@ -7,6 +7,9 @@ class ResidualMemory(Memory):
         self.beta = beta
         self.gamma = gamma
 
+    def __str__(self):
+        return "residual_memory"
+
     def compensate(self, tensor, name, worker):
         """Update the tensor with the residuals."""
         if name+str(worker) in self.residuals:

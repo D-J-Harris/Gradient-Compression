@@ -24,6 +24,9 @@ class TopKCompression(Compressor):
         self.compress_ratio = compress_ratio
         self.is_sparse = True
 
+    def __str__(self):
+        return f"top_k_{self.compress_ratio}"
+
     def compress(self, tensor, name):
         tensors = sparsify(tensor, self.compress_ratio)
         ctx = tensor.numel(), tensor.size()
