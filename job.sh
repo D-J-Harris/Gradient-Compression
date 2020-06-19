@@ -1,20 +1,17 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 400 \
---num_workers 2 \
+--hidden_size 300 \
+--num_workers 1 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 32 \
---num_epochs 20 \
+--num_epochs 1 \
 --dropout_prob 0.5 \
---cuda \
 --tie_weights \
---wandb \
 --seed 1111 \
 --memory 'none' \
 --compression 'none' \
---project_name 'is_this_the_run' \
-
+--project_name 'temp' \
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags
 

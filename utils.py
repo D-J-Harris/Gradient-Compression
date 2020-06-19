@@ -19,18 +19,18 @@ def batchify(data, device, args, is_test=False):
     # trim off any extra elements that wouldn't cleanly fit (remainders)
     x = data.narrow(0, 0, bsz * nbatch)
     x = x.view(bsz, -1).t().contiguous()
-    # x = x.long()
-
     return x.to(device)
 
 
 def get_batch(source, batch_idx, worker, args):
     """Returns the batch starting from position batch_idx."""
     i = batch_idx
+    bsz = args.batch_size_train
     seq_len = min(args.seq_length, len(source) - 1 - i)
-    data = source[(i * args.seq_length):(i * args.seq_length) + seq_len]
-    target = source[(i * args.seq_length) + 1:(i * args.seq_length) + 1 + seq_len]
+    data = source[i:i + seq_len]
+    target = source[i + 1:i + 1 + seq_len]
 
-    data_split = data[:,(args.batch_size_train//args.num_workers) * worker: (args.batch_size_train//args.num_workers) * (worker+1)]
-    target_split = target[:,(args.batch_size_train//args.num_workers) * worker: (args.batch_size_train//args.num_workers) * (worker+1)].reshape(-1)
+    # chunk the data along batch dim, retrieving a chunk indexed by worker
+    data_split = data[:,(bsz//args.num_workers) * worker: (bsz//args.num_workers) * (worker+1)]
+    target_split = target[:,(bsz//args.num_workers) * worker: (bsz//args.num_workers) * (worker+1)].reshape(-1)
     return data_split, target_split

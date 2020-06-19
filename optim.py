@@ -2,7 +2,6 @@
 ## additionally from https://horovod.readthedocs.io/en/latest/pytorch.html
 
 import torch
-from utils import truncate
 from torch.optim.optimizer import Optimizer
 
 from memory.none import NoneMemory
@@ -65,7 +64,7 @@ class _DistributedSGD(Optimizer):
 
     @torch.no_grad()
     def assign_grads(self, closure=None):
-        """Performs a single optimization step.
+        """Loops over grads and places accumulated gradient into them.
         Arguments:
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
@@ -80,16 +79,17 @@ class _DistributedSGD(Optimizer):
             for p in group['params']:
                 name = self.parameter_names.get(p)
 
+                # get accumulated gradients and context from memory
                 d_p = self.memory.cumulative_grads[name].detach()
                 ctx = self.memory.cumulative_grads[name+'ctx']
 
+                # non-sparse methods will need decompressing too
+                # (sparse methods are decompressed before adding, as this
+                # only adds zeros and doesn't affect accuracy)
                 if not self.compression.is_sparse:
                     d_ps = d_p, None  # add fake indices
                     d_p = self.compression.decompress(d_ps, ctx)
-                # if learning rate doesnt, then divide by num_workers here
 
-                # if not self.compression.is_quant:
-                #     d_p = truncate(d_p, 15).float() # truncate from float64, like with outputs and hiddens
                 p.grad = d_p
 
         self.memory.cumulative_grads = {}
@@ -118,7 +118,6 @@ class _DistributedSGD(Optimizer):
                 d_p = torch.clone(p.grad).detach()
                 p.add_(d_p, alpha=-group['lr'])
 
-        self.memory.cumulative_grads = {}
         return loss
 
 
