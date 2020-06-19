@@ -1,3 +1,4 @@
+import time
 import wandb
 import argparse
 import numpy as np
@@ -71,6 +72,8 @@ def run_epoch(model, data, is_train=False):
 
     epoch_size = data.size(0) // args.seq_length  # no. sequences that fit
     # loop over data in batches of sequence length defined by seq_length (bptt) parameter
+
+    start = time.clock()
     for batch_idx in range(epoch_size * args.num_workers):
         worker_num = (batch_idx+1) % args.num_workers
         seq_start = (batch_idx // args.num_workers) * args.seq_length
@@ -105,7 +108,9 @@ def run_epoch(model, data, is_train=False):
             print('epoch progress {:.3f}%'.format(
                 batch_idx * 100.0 / (epoch_size*args.num_workers)))
 
-    return np.exp(costs / epoch_size)
+    # track the time taken to loop through this epoch
+    end = time.clock()
+    return np.exp(costs / epoch_size), start-end
 
 
 if __name__ == "__main__":
@@ -177,6 +182,7 @@ if __name__ == "__main__":
     ###############################################################################
 
     # training
+    run_time = 0.0
     for epoch in range(1, args.num_epochs + 1):
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
         lr = lr * lr_decay
@@ -184,20 +190,24 @@ if __name__ == "__main__":
             g['lr'] = lr
 
         # train, log, val, log
-        train_p = run_epoch(model, train_data, is_train=True)
+        train_p, time_elapsed = run_epoch(model, train_data, is_train=True)
+        run_time += time_elapsed
         print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
-        val_p = run_epoch(model, val_data)
+        val_p, _ = run_epoch(model, val_data)
         print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
 
         if args.wandb:
             wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
             wandb.log({f'num_workers': args.num_workers})
+            wandb.log({f'epoch size': train_data.size(0) / args.seq_length})
+            wandb.log({f'average time per epoch per worker':
+                           run_time / (args.num_workers * args.num_epochs)})
 
     # testing, set new batch size (to 1)
     model.batch_size = args.batch_size_test
     args.num_workers = 1
-    test_p = run_epoch(model, test_data)
+    test_p, _ = run_epoch(model, test_data)
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
 
     print('Layer compression rates: ')
