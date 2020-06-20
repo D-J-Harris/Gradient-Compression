@@ -1,6 +1,7 @@
 from compression.none import NoneCompression
 from compression.topk import TopKCompression
 from compression.randomk import RandomKCompressor
+from compression.dgc import DGCCompressor
 
 def compression_chooser(inp, compress_ratio=0.01):
     """method for selecting compression method
@@ -14,6 +15,9 @@ def compression_chooser(inp, compress_ratio=0.01):
 
     if inp == 'randomk':
         return RandomKCompressor(compress_ratio)
+
+    if inp == 'dgc':
+        return DGCCompressor(compress_ratio)
 
     else:
         raise ValueError('compression argument invalid')

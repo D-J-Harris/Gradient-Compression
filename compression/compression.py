@@ -3,9 +3,8 @@ from abc import ABC, abstractmethod
 class Compressor(ABC):
     """Interface for compressing and decompressing a given tensor."""
 
-    def __init__(self, is_sparse=False, is_quant=False, param_count={}):
+    def __init__(self, is_sparse=False, param_count={}):
         self.is_sparse = is_sparse
-        self.is_quant = is_quant
         self.param_count = param_count
 
     @abstractmethod
