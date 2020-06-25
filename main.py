@@ -184,6 +184,10 @@ if __name__ == "__main__":
     # training
     run_time = 0.0
     for epoch in range(1, args.num_epochs + 1):
+
+        if args.compression == 'dgc':
+            compression_ratio = min(0.001, 0.25**epoch)
+            compressor.compress_ratio = compression_ratio
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
         lr = lr * lr_decay
         for g in optimizer.param_groups:
