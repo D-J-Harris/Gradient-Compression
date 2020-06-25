@@ -87,8 +87,8 @@ class _DistributedSGD(Optimizer):
                 # (sparse methods are decompressed before adding, as this
                 # only adds zeros and doesn't affect accuracy)
                 if not self.compression.is_sparse:
-                    d_ps = d_p, None  # add fake indices
-                    d_p = self.compression.decompress(d_ps, ctx)
+                    # d_ps = d_p, None  # add fake indices
+                    d_p = self.compression.decompress(d_p, ctx)
 
                 p.grad = d_p
 
