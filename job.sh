@@ -9,8 +9,8 @@ python -u main.py \
 --dropout_prob 0.5 \
 --tie_weights \
 --seed 1111 \
---memory 'none' \
---compression 'none' \
+--memory 'residual' \
+--compression 'qsgd' \
 --project_name 'temp' \
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags

@@ -115,6 +115,7 @@ class _DistributedSGD(Optimizer):
                     continue
                 d_p = torch.clone(p.grad).detach()
                 p.add_(d_p, alpha=-group['lr'])
+                p.grad = None
 
         return loss
 
