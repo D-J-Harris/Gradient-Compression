@@ -1,7 +1,7 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 100 \
---num_workers 1 \
+--num_workers 2 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 32 \
