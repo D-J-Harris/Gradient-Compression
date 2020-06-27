@@ -2,9 +2,9 @@ from compression.none import NoneCompression
 from compression.topk import TopKCompression
 from compression.randomk import RandomKCompressor
 from compression.dgc import DGCCompressor
-from compression.onebit import OneBitCompressor
+from compression.qsgd import QSGDCompressor
 
-def compression_chooser(inp, compress_ratio=0.01):
+def compression_chooser(inp, compress_ratio=0.01, quantum_number=4):
     """method for selecting compression method
     from command line argument."""
 
@@ -20,8 +20,8 @@ def compression_chooser(inp, compress_ratio=0.01):
     if inp == 'dgc':
         return DGCCompressor(compress_ratio)
 
-    if inp == 'onebit':
-        return OneBitCompressor()
+    if inp == 'qsgd':
+        return QSGDCompressor(quantum_number)
 
     else:
         raise ValueError('compression argument invalid')

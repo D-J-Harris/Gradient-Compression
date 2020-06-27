@@ -10,7 +10,7 @@ python -u main.py \
 --tie_weights \
 --seed 1111 \
 --memory 'none' \
---compression 'none' \
+--compression 'qsgd' \
 --project_name 'temp' \
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags

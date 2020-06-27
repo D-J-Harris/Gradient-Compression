@@ -80,17 +80,17 @@ class _DistributedSGD(Optimizer):
                 name = self.parameter_names.get(p)
 
                 # get accumulated gradients and context from memory
-                d_p = self.memory.cumulative_grads[name].detach()
+                d_p = self.memory.cumulative_grads[name]
                 ctx = self.memory.cumulative_grads[name+'ctx']
 
                 # non-sparse methods will need decompressing too
                 # (sparse methods are decompressed before adding, as this
                 # only adds zeros and doesn't affect accuracy)
                 if not self.compression.is_sparse:
-                    d_ps = d_p, None  # add fake indices
-                    d_p = self.compression.decompress(d_ps, ctx)
+                    # d_ps = d_p, None  # add fake indices
+                    d_p = self.compression.decompress(d_p, ctx)
 
-                p.grad = d_p
+                p.grad = d_p.data
 
         self.memory.cumulative_grads = {}
         return loss
@@ -147,7 +147,7 @@ class _DistributedSGD(Optimizer):
                 if momentum != 0:
                     param_state = self.state[p]
                     if 'momentum_buffer' not in param_state:
-                        buf = param_state['momentum_buffer'] = torch.clone(d_p).detach()
+                        buf = param_state['momentum_buffer'] = d_p
                     else:
                         buf = param_state['momentum_buffer']
                         buf.mul_(momentum).add_(d_p, alpha=1-dampening)
@@ -165,16 +165,15 @@ class _DistributedSGD(Optimizer):
                 # else, just take the tensor (indices is None)
                 if self.compression.is_sparse:
                     d_p_comp = self.compression.decompress(d_p_comp, ctx)
-                else:
-                    d_p_comp = d_p_comp[0]
+                # else:
+                #     d_p_comp = d_p_comp[0]
 
                 # if first worker, initialise dict of cumulative grads
                 if name not in self.memory.cumulative_grads:
-                    # ctx may need cloning in future too
-                    self.memory.cumulative_grads[name] = torch.clone(d_p_comp).detach()
+                    self.memory.cumulative_grads[name] = d_p_comp
                     self.memory.cumulative_grads[name+'ctx'] = ctx
                 else:
-                    self.memory.cumulative_grads[name] += torch.clone(d_p_comp).detach()
+                    self.memory.cumulative_grads[name] += d_p_comp
 
 
 def DistributedSGD(optimizer, named_parameters=None, num_workers=1,
