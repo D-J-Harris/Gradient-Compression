@@ -1,17 +1,20 @@
 #!/bin/sh
 python -u main.py \
---hidden_size 100 \
---num_workers 2 \
+--hidden_size 300 \
+--num_workers 1 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 32 \
---num_epochs 1 \
+--num_epochs 50 \
 --dropout_prob 0.5 \
+--cuda \
+--initial_lr 10 \
+--wandb \
 --tie_weights \
 --seed 1111 \
---memory 'residual' \
---compression 'qsgd' \
---project_name 'temp' \
+--memory 'none' \
+--compression 'none' \
+--project_name 'qsgd' \
 
 ## missing --cuda, --wandb, --tie_weights and --save, among other flags
 

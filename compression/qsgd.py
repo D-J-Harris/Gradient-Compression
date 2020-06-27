@@ -7,7 +7,7 @@ class QSGDCompressor(Compressor):
     def __init__(self, quantum_num):
         super().__init__()
         self.quantum_num = quantum_num
-        self.max = torch.Tensor([0]).cuda()
+        self.is_sparse = True
 
 
     def __str__(self):
@@ -18,12 +18,15 @@ class QSGDCompressor(Compressor):
         shape = tensor.size()
         tensor = tensor.flatten()
 
-        max = tensor.max().flatten().cuda()
-        if max > self.max:
-            self.max = max
+        norm = tensor.max()
+        norm = norm.flatten()
+        # print(norm)
+        # print('skeet', tensor.max().flatten())
+        # if norm > self.norm:
+        #     self.norm = norm
         abs_gradient = tensor.abs()
 
-        level_float = self.quantum_num / max * abs_gradient
+        level_float = self.quantum_num / norm * abs_gradient
         previous_level = level_float.floor()
         prob = torch.empty_like(tensor).uniform_()
         is_next_level = (prob < (level_float - previous_level)).type(torch.float32)
@@ -32,12 +35,14 @@ class QSGDCompressor(Compressor):
         sign = tensor.sign()
         tensor_compressed = (new_level * sign).type(torch.int16)
         tensor_compressed = tensor_compressed.type(torch.int8 if self.quantum_num < 128 else torch.half)
+        tensor_compressed = tensor_compressed, norm
 
         return tensor_compressed, shape
 
     def decompress(self, tensor_compressed, shape):
+        tensor_compressed, norm = tensor_compressed
 
         decode_output = tensor_compressed.type(torch.float32)
-        tensor_decompressed = self.max / self.quantum_num * decode_output
+        tensor_decompressed = norm / self.quantum_num * decode_output
         tensor_decompressed = tensor_decompressed.view(shape)
         return tensor_decompressed

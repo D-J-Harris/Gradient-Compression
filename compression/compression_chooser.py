@@ -4,7 +4,7 @@ from compression.randomk import RandomKCompressor
 from compression.dgc import DGCCompressor
 from compression.qsgd import QSGDCompressor
 
-def compression_chooser(inp, compress_ratio=0.01, quantum_num=4):
+def compression_chooser(inp, compress_ratio=0.01, quantum_num=64):
     """method for selecting compression method
     from command line argument."""
 

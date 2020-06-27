@@ -169,7 +169,7 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 1 / 1.15
+    lr_decay_base = 1 / 1.2
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)
