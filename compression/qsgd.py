@@ -7,7 +7,7 @@ class QSGDCompressor(Compressor):
     def __init__(self, quantum_num):
         super().__init__()
         self.quantum_num = quantum_num
-        self.max = torch.Tensor([0])
+        self.max = torch.Tensor([0]).cuda()
 
 
     def __str__(self):
@@ -18,7 +18,7 @@ class QSGDCompressor(Compressor):
         shape = tensor.size()
         tensor = tensor.flatten()
 
-        max = tensor.max().flatten()
+        max = tensor.max().flatten().cuda()
         if max > self.max:
             self.max = max
         abs_gradient = tensor.abs()

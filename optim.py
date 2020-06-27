@@ -117,6 +117,9 @@ class _DistributedSGD(Optimizer):
                 p.add_(d_p, alpha=-group['lr'])
                 p.grad = None
 
+        if str(self.compression) == 'qsgd':
+          self.compression.max = torch.Tensor([0]).cuda()
+
         return loss
 
 
