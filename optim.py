@@ -81,15 +81,6 @@ class _DistributedSGD(Optimizer):
 
                 # get accumulated gradients and context from memory
                 d_p = self.memory.cumulative_grads[name]
-                ctx = self.memory.cumulative_grads[name+'ctx']
-
-                # non-sparse methods will need decompressing too
-                # (sparse methods are decompressed before adding, as this
-                # only adds zeros and doesn't affect accuracy)
-                if not self.compression.is_sparse:
-                    # d_ps = d_p, None  # add fake indices
-                    d_p = self.compression.decompress(d_p, ctx)
-
                 p.grad = d_p.data
 
         self.memory.cumulative_grads = {}
@@ -160,18 +151,11 @@ class _DistributedSGD(Optimizer):
                 d_p = self.memory.compensate(d_p, name, worker)
                 d_p_comp, ctx = self.compression.compress(d_p, name)
                 self.memory.update(d_p, name, worker, self.compression, d_p_comp, ctx)
-
-                # if sparse, then decompress before accumulating
-                # else, just take the tensor (indices is None)
-                if self.compression.is_sparse:
-                    d_p_comp = self.compression.decompress(d_p_comp, ctx)
-                # else:
-                #     d_p_comp = d_p_comp[0]
+                d_p_comp = self.compression.decompress(d_p_comp, ctx)
 
                 # if first worker, initialise dict of cumulative grads
                 if name not in self.memory.cumulative_grads:
                     self.memory.cumulative_grads[name] = d_p_comp
-                    self.memory.cumulative_grads[name+'ctx'] = ctx
                 else:
                     self.memory.cumulative_grads[name] += d_p_comp
 
