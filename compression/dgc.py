@@ -46,10 +46,6 @@ class DGCCompressor(Compressor):
         tensor_compressed = values, indices
         ctx = shape, mask, numel
 
-        # save running compression ratio for that layer
-        ratio = values.numel() / numel
-        self.update_running_ratio(name, ratio)
-
         return tensor_compressed, ctx
 
     def decompress(self, tensor_compressed, ctx):

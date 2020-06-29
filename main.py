@@ -1,6 +1,5 @@
 import time
 import wandb
-from argparser import get_args
 import numpy as np
 
 import torch.nn
@@ -8,13 +7,16 @@ import torch.nn as nn
 
 import data_load
 from model import LSTM
+from argparser import get_args
 from optim import DistributedSGD
 from utils import repackage_hidden, batchify, get_batch
 
 from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
 
+
 args = get_args()
+
 
 def run_epoch(model, data, is_train=False):
     """Runs the model on the given data, for a single epoch"""
@@ -82,8 +84,8 @@ if __name__ == "__main__":
     ###############################################################################
 
     # define the compression and residual saving techniques
-    compressor = compression_chooser(args.compression)
-    memory = memory_chooser(args.memory)
+    compressor = compression_chooser(args)
+    memory = memory_chooser(args)
     print("Using compression: ", str(compressor))
     print("Using memory: ", str(memory))
 
@@ -162,17 +164,9 @@ if __name__ == "__main__":
             wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
 
-    # track some hyperparams to wandb
-    if args.wandb:
-        wandb.log({f'num_workers': args.num_workers})
-        wandb.log({f'dropout': args.dropout_prob})
-        wandb.log({f'initial_lr': args.initial_lr})
-        wandb.log({f'batch size': args.batch_size_train})
-        wandb.log({f'tied_weights': args.tie_weights})
-        wandb.log({f'hidden_size': args.hidden_size})
-        wandb.log({f'epoch size': train_data.size(0) / args.seq_length})
-        wandb.log({f'average time per epoch per worker':
-                       run_time / (args.num_workers * args.num_epochs)})
+    # print some metrics
+    print('epoch size:', train_data.size(0) / args.seq_length)
+    print('average time per epoch per worker:', run_time / (args.num_workers * args.num_epochs))
 
     # testing, set new batch size (to 1)
     model.batch_size = args.batch_size_test
@@ -181,8 +175,3 @@ if __name__ == "__main__":
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
-
-    print('Layer compression rates: ')
-    for name, ratio_sum in compressor.param_count.items():
-        print(f"{name}: compression ratio of "
-              f"{ratio_sum / ((train_data.size(0) // args.seq_length) * args.num_workers)}")
