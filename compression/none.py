@@ -13,10 +13,6 @@ class NoneCompression(Compressor):
     def compress(self, tensor, name):
         tensors = tensor, None
 
-        # save running compression ratio for that layer
-        ratio = 1.0
-        self.update_running_ratio(name, ratio)
-
         return tensors, None
 
     def decompress(self, tensors, ctx):

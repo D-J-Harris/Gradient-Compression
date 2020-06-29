@@ -22,7 +22,6 @@ class TopKCompression(Compressor):
     def __init__(self, compress_ratio):
         super().__init__()
         self.compress_ratio = compress_ratio
-        self.is_sparse = True
 
     def __str__(self):
         return f"top_k_{self.compress_ratio}"
@@ -30,10 +29,6 @@ class TopKCompression(Compressor):
     def compress(self, tensor, name):
         tensors = sparsify(tensor, self.compress_ratio)
         ctx = tensor.numel(), tensor.size()
-
-        # save running compression ratio for that layer
-        ratio = tensors[0].numel() / ctx[0]
-        self.update_running_ratio(name, ratio)
 
         return tensors, ctx
 

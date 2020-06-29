@@ -7,7 +7,6 @@ class DGCCompressor(Compressor):
     def __init__(self, compress_ratio):
         super().__init__()
         self.compress_ratio = compress_ratio
-        self.is_sparse = True
 
 
     def __str__(self):
@@ -45,10 +44,6 @@ class DGCCompressor(Compressor):
 
         tensor_compressed = values, indices
         ctx = shape, mask, numel
-
-        # save running compression ratio for that layer
-        ratio = values.numel() / numel
-        self.update_running_ratio(name, ratio)
 
         return tensor_compressed, ctx
 
