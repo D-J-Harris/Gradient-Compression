@@ -65,15 +65,7 @@ class _DistributedSGD(Optimizer):
     @torch.no_grad()
     def assign_grads(self, closure=None):
         """Loops over grads and places accumulated gradient into them.
-        Arguments:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-
 
         for group in self.param_groups:
             for p in group['params']:
@@ -84,22 +76,12 @@ class _DistributedSGD(Optimizer):
                 p.grad = d_p
 
         self.memory.cumulative_grads = {}
-        return loss
-
 
 
     @torch.no_grad()
     def step(self, closure=None):
         """Performs a single optimization step.
-        Arguments:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-
 
         for group in self.param_groups:
             for p in group['params']:
@@ -109,8 +91,6 @@ class _DistributedSGD(Optimizer):
                 d_p = torch.clone(p.grad).detach()
                 p.add_(d_p, alpha=-group['lr'])
                 p.grad = None
-
-        return loss
 
 
     @torch.no_grad()

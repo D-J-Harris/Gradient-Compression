@@ -12,12 +12,16 @@ class ResidualMemory(Memory):
 
     def compensate(self, tensor, name, worker):
         """Update the tensor with the residuals."""
-        if name+str(worker) in self.residuals:
-            tensor = self.beta * self.residuals[name+str(worker)] + self.gamma * tensor
+        idx = name + str(worker)
+
+        if idx in self.residuals:
+            tensor = self.beta * self.residuals[idx] + self.gamma * tensor
         return tensor
 
     def update(self, tensor, name, worker, compressor, tensor_compressed, ctx):
         """Update the residuals."""
+        idx = name + str(worker)
+
         tensor_decompressed = compressor.decompress(tensor_compressed, ctx)
         residual = tensor - tensor_decompressed
-        self.residuals[name+str(worker)] = torch.clone(residual).detach()
+        self.residuals[idx] = torch.clone(residual).detach()

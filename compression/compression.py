@@ -12,9 +12,3 @@ class Compressor(ABC):
     def decompress(self, tensors, ctx):
         """Decompress the tensor with the given context."""
         raise NotImplemented("decompress was not implemented.")
-
-    def update_running_ratio(self, name, ratio):
-        if name not in self.param_count:
-            self.param_count[name] = ratio
-        else:
-            self.param_count[name] += ratio

@@ -1,7 +1,7 @@
 from compression.compression import Compressor
 
 class NoneCompression(Compressor):
-    """Default no-op compression."""
+    """Default no compression."""
     def __init__(self):
         super().__init__()
 

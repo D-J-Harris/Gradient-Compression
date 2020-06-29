@@ -3,6 +3,7 @@ from compression.compression import Compressor
 
 
 class QSGDCompressor(Compressor):
+    """QSGD, Alistarh et al."""
 
     def __init__(self, quantum_num):
         super().__init__()
@@ -32,6 +33,7 @@ class QSGDCompressor(Compressor):
         tensor_compressed = tensor_compressed.type(torch.int8 if self.quantum_num < 128 else torch.half)
         tensor_compressed = tensor_compressed, norm
 
+        # the norm is 32bits, levels are integer compressed bits
         return tensor_compressed, shape
 
     def decompress(self, tensor_compressed, shape):

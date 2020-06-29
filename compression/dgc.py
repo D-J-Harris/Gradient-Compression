@@ -3,6 +3,7 @@ from compression.compression import Compressor
 
 
 class DGCCompressor(Compressor):
+    """Deep Gradient Compression, Lin et al."""
 
     def __init__(self, compress_ratio):
         super().__init__()
@@ -29,6 +30,7 @@ class DGCCompressor(Compressor):
         mask = tensor.abs() >= thr
         selected = mask.sum()
 
+        # adjust threshold to match target ratio
         for _ in range(10):
             if selected > 1.3 * numel * self.compress_ratio:
                 thr = 1.3 * thr
