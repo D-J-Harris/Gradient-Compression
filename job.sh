@@ -1,7 +1,7 @@
 #!/bin/sh
 python -u main.py \
 --hidden_size 300 \
---num_workers 1 \
+--num_workers 4 \
 --seq_length 35 \
 --num_layers 2 \
 --batch_size_train 32 \
@@ -10,6 +10,7 @@ python -u main.py \
 --tie_weights \
 --cuda \
 --wandb \
---memory 'none' \
---compression 'none' \
+--memory 'dgc' \
+--compression 'dgc' \
+--compression_ratio 0.001 \
 --project_name 'project_name' \
