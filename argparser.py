@@ -74,5 +74,7 @@ def get_args():
     print('training batch size:', args.batch_size_train)
     print('were the embedding weights tied:', args.tie_weights)
     print('hidden layer size:', args.hidden_size)
+    print('compression ratio if sparse:', args.compression_ratio)
+    print('quantum number if qsgd:', args.quantum_num)
 
     return args
