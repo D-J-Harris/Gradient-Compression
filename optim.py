@@ -81,15 +81,6 @@ class _DistributedSGD(Optimizer):
 
                 # get accumulated gradients and context from memory
                 d_p = self.memory.cumulative_grads[name].detach()
-                ctx = self.memory.cumulative_grads[name+'ctx']
-
-                # non-sparse methods will need decompressing too
-                # (sparse methods are decompressed before adding, as this
-                # only adds zeros and doesn't affect accuracy)
-                if not self.compression.is_sparse:
-                    # d_ps = d_p, None  # add fake indices
-                    d_p = self.compression.decompress(d_p, ctx)
-
                 p.grad = d_p
 
         self.memory.cumulative_grads = {}
@@ -117,6 +108,7 @@ class _DistributedSGD(Optimizer):
                     continue
                 d_p = torch.clone(p.grad).detach()
                 p.add_(d_p, alpha=-group['lr'])
+                p.grad = None
 
         return loss
 
@@ -161,18 +153,13 @@ class _DistributedSGD(Optimizer):
                 d_p_comp, ctx = self.compression.compress(d_p, name)
                 self.memory.update(d_p, name, worker, self.compression, d_p_comp, ctx)
 
-                # if sparse, then decompress before accumulating
-                # else, just take the tensor (indices is None)
-                if self.compression.is_sparse:
-                    d_p_comp = self.compression.decompress(d_p_comp, ctx)
-                else:
-                    d_p_comp = d_p_comp[0]
+                # always decompress before accumulation
+                # this doesnt affect sparsification, and is standard e.g. in qsgd
+                d_p_comp = self.compression.decompress(d_p_comp, ctx)
 
                 # if first worker, initialise dict of cumulative grads
                 if name not in self.memory.cumulative_grads:
-                    # ctx may need cloning in future too
                     self.memory.cumulative_grads[name] = torch.clone(d_p_comp).detach()
-                    self.memory.cumulative_grads[name+'ctx'] = ctx
                 else:
                     self.memory.cumulative_grads[name] += torch.clone(d_p_comp).detach()
 

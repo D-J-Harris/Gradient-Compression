@@ -1,6 +1,5 @@
 import time
 import wandb
-import argparse
 import numpy as np
 
 import torch.nn
@@ -8,50 +7,15 @@ import torch.nn as nn
 
 import data_load
 from model import LSTM
+from argparser import get_args
 from optim import DistributedSGD
 from utils import repackage_hidden, batchify, get_batch
 
 from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
 
-parser = argparse.ArgumentParser(description='LSTM-based language model')
-parser.add_argument('--data', type=str, default='./penn',
-                    help='location of the data corpus')
-parser.add_argument('--hidden_size', type=int, default=250,
-                    help='size of word embeddings/hidden size LSTM')
-parser.add_argument('--num_workers', type=int, default=1,
-                    help='number of workers simulated')
-parser.add_argument('--seq_length', type=int, default=35,
-                    help='backpropagation through time parameter')
-parser.add_argument('--num_layers', type=int, default=2,
-                    help='number of LSTM layers (>1 for dropout)')
-parser.add_argument('--batch_size_train', type=int, default=32,
-                    help='batch size during training')
-parser.add_argument('--batch_size_test', type=int, default=1,
-                    help='batch size during testing')
-parser.add_argument('--num_epochs', type=int, default=40,
-                    help='number of epochs')
-parser.add_argument('--dropout_prob', type=float, default=0.0,
-                    help='dropout probability, regularisation')
-parser.add_argument('--tie_weights', action='store_true',
-                    help='tie weights of in_ and out_embeddings')
-parser.add_argument('--initial_lr', type=float, default=5.0,
-                    help='initial learning rate')
-parser.add_argument('--cuda', action='store_true',
-                    help='default use CUDA')
-parser.add_argument('--log-interval', type=int, default=100,
-                    help='report interval for measuring epoch progress')
-parser.add_argument('--project_name', type=str, default="test_run",
-                    help='project name for wandb instance')
-parser.add_argument('--seed', type=int, default=42,
-                    help='random seed for consistent testing')
-parser.add_argument('--compression', type=str, default='none',
-                    help='method used for gradient compression')
-parser.add_argument('--memory', type=str, default='none',
-                    help='method used for memory on gradient residuals')
-parser.add_argument('--wandb', action='store_true',
-                    help='default use wandb for metric logging')
-args = parser.parse_args()
+
+args = get_args()
 
 
 def run_epoch(model, data, is_train=False):
@@ -120,8 +84,8 @@ if __name__ == "__main__":
     ###############################################################################
 
     # define the compression and residual saving techniques
-    compressor = compression_chooser(args.compression)
-    memory = memory_chooser(args.memory)
+    compressor = compression_chooser(args)
+    memory = memory_chooser(args)
     print("Using compression: ", str(compressor))
     print("Using memory: ", str(memory))
 
@@ -169,7 +133,7 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 1 / 1.15
+    lr_decay_base = 1 / 1.2
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)
@@ -200,17 +164,9 @@ if __name__ == "__main__":
             wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
 
-    # track some hyperparams to wandb
-    if args.wandb:
-        wandb.log({f'num_workers': args.num_workers})
-        wandb.log({f'dropout': args.dropout_prob})
-        wandb.log({f'initial_lr': args.initial_lr})
-        wandb.log({f'batch size': args.batch_size_train})
-        wandb.log({f'tied_weights': args.tie_weights})
-        wandb.log({f'hidden_size': args.hidden_size})
-        wandb.log({f'epoch size': train_data.size(0) / args.seq_length})
-        wandb.log({f'average time per epoch per worker':
-                       run_time / (args.num_workers * args.num_epochs)})
+    # print some metrics
+    print('epoch size:', train_data.size(0) / args.seq_length)
+    print('average time per epoch per worker:', run_time / (args.num_workers * args.num_epochs))
 
     # testing, set new batch size (to 1)
     model.batch_size = args.batch_size_test
@@ -219,8 +175,3 @@ if __name__ == "__main__":
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
-
-    print('Layer compression rates: ')
-    for name, ratio_sum in compressor.param_count.items():
-        print(f"{name}: compression ratio of "
-              f"{ratio_sum / ((train_data.size(0) // args.seq_length) * args.num_workers)}")

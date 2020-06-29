@@ -7,7 +7,6 @@ class DGCCompressor(Compressor):
     def __init__(self, compress_ratio):
         super().__init__()
         self.compress_ratio = compress_ratio
-        self.is_sparse = True
 
 
     def __str__(self):
@@ -19,7 +18,7 @@ class DGCCompressor(Compressor):
         tensor = tensor.flatten()
         numel = tensor.numel()
 
-        sample_shape = [max(1, int(numel * 0.01))]
+        sample_shape = [max(1, int(numel * 0.01))]  # sample 0.1-1% as per paper
         sample_index = torch.empty(sample_shape).uniform_(0, numel).type(torch.long)
         sample_tensor = tensor[sample_index]
 
@@ -45,10 +44,6 @@ class DGCCompressor(Compressor):
 
         tensor_compressed = values, indices
         ctx = shape, mask, numel
-
-        # save running compression ratio for that layer
-        ratio = values.numel() / numel
-        self.update_running_ratio(name, ratio)
 
         return tensor_compressed, ctx
 
