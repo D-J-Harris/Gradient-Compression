@@ -19,7 +19,7 @@ class DGCCompressor(Compressor):
         tensor = tensor.flatten()
         numel = tensor.numel()
 
-        sample_shape = [max(1, int(numel * 0.01))]
+        sample_shape = [max(1, int(numel * 0.01))]  # sample 0.1-1% as per paper
         sample_index = torch.empty(sample_shape).uniform_(0, numel).type(torch.long)
         sample_tensor = tensor[sample_index]
 

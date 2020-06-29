@@ -18,12 +18,8 @@ class QSGDCompressor(Compressor):
         shape = tensor.size()
         tensor = tensor.flatten()
 
-        norm = tensor.max()
+        norm = tensor.max()  # max as per paper empirical details
         norm = norm.flatten()
-        # print(norm)
-        # print('skeet', tensor.max().flatten())
-        # if norm > self.norm:
-        #     self.norm = norm
         abs_gradient = tensor.abs()
 
         level_float = self.quantum_num / norm * abs_gradient
