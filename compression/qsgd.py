@@ -7,7 +7,6 @@ class QSGDCompressor(Compressor):
     def __init__(self, quantum_num):
         super().__init__()
         self.quantum_num = quantum_num
-        self.is_sparse = True
 
 
     def __str__(self):

@@ -22,7 +22,6 @@ class TopKCompression(Compressor):
     def __init__(self, compress_ratio):
         super().__init__()
         self.compress_ratio = compress_ratio
-        self.is_sparse = True
 
     def __str__(self):
         return f"top_k_{self.compress_ratio}"
