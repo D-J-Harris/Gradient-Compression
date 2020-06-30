@@ -24,8 +24,6 @@ parameters:
     distribution: uniform
     min: 1
     max: 30
-  cuda:
-    value: False
 early_terminate:
   type: hyperband
   s: 2
