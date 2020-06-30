@@ -20,25 +20,25 @@ def get_args():
     parser.add_argument('--num_layers', type=int, default=2,
                         help='number of LSTM layers (>1 for dropout)')
 
-    parser.add_argument('--batch_size_train', type=int, default=32,
+    parser.add_argument('--batch_size_train', type=int, default=256,
                         help='batch size during training')
 
     parser.add_argument('--batch_size_test', type=int, default=1,
                         help='batch size during testing')
 
-    parser.add_argument('--num_epochs', type=int, default=40,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
 
-    parser.add_argument('--dropout_prob', type=float, default=0.5,
+    parser.add_argument('--dropout_prob', type=float, default=0.0,
                         help='dropout probability, regularisation')
 
-    parser.add_argument('--tie_weights', action='store_true',
+    parser.add_argument('--tie_weights', type=bool, default=True,
                         help='tie weights of in_ and out_embeddings')
 
     parser.add_argument('--initial_lr', type=float, default=20.0,
                         help='initial learning rate')
 
-    parser.add_argument('--cuda', action='store_true',
+    parser.add_argument('--cuda', type=bool, default=True,
                         help='default use CUDA')
 
     parser.add_argument('--log_interval', type=int, default=100,
@@ -56,7 +56,7 @@ def get_args():
     parser.add_argument('--memory', type=str, default='none',
                         help='method used for memory on gradient residuals')
 
-    parser.add_argument('--wandb', action='store_true',
+    parser.add_argument('--wandb', type=bool, default=True,
                         help='default use wandb for metric logging')
 
     parser.add_argument('--compression_ratio', type=float, default=0.01,
@@ -65,16 +65,9 @@ def get_args():
     parser.add_argument('--quantum_num', type=int, default=64,
                         help='number of quantisation levels used in QSGD')
 
+    parser.add_argument('--experiment_name', type=str, default='experiment_name',
+                        help='experiment name for particular wandb run')
+
 
     args = parser.parse_args()
-
-    print('number of workers:', args.num_workers)
-    print('dropout used:', args.dropout_prob)
-    print('initial learning rate:', args.initial_lr)
-    print('training batch size:', args.batch_size_train)
-    print('were the embedding weights tied:', args.tie_weights)
-    print('hidden layer size:', args.hidden_size)
-    print('compression ratio if sparse:', args.compression_ratio)
-    print('quantum number if qsgd:', args.quantum_num)
-
     return args

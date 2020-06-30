@@ -1,0 +1,33 @@
+program: main.py
+method: random
+metric:
+  goal: minimize
+  name: validation perplexity
+parameters:
+  hidden_size:
+    value: 300
+  num_workers:
+    value: 1
+  batch_size_train:
+    value: 256
+  seed:
+    value: 42
+  compression:
+    value: 'none'
+  memory:
+    value: 'none'
+  project_name:
+    value: 'gradient compression'
+  experiment_name:
+    value: '1_worker_none'
+  initial_lr:
+    distribution: uniform
+    min: 1
+    max: 30
+  cuda:
+    value: False
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 27
