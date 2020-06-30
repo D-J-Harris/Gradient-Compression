@@ -67,11 +67,6 @@ def run_epoch(model, data, is_train=False):
               torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
               optimizer.step()
 
-        # log progress, not to wandb though
-        if (batch_idx / args.num_workers) % args.log_interval == 0 and batch_idx > 0:
-            print('epoch progress {:.3f}%'.format(
-                batch_idx * 100.0 / (epoch_size*args.num_workers)))
-
     # track the time taken to loop through this epoch
     end = time.process_time()
     return np.exp(costs / epoch_size), end-start
@@ -126,7 +121,7 @@ if __name__ == "__main__":
 
     # initialize weights and biases for metric tracking
     if args.wandb:
-        experiment_name = args.experiment_name + str(args.initial_lr)
+        experiment_name = args.experiment_name + str(format(args.initial_lr, '.2f'))
         wandb.init(project=args.project_name, name=experiment_name, config=args, reinit=True)
         wandb.watch(model)
 
@@ -134,7 +129,7 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 0
+    lr_decay_base = 1 / 1.1
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)

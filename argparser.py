@@ -41,9 +41,6 @@ def get_args():
     parser.add_argument('--cuda', type=bool, default=True,
                         help='default use CUDA')
 
-    parser.add_argument('--log_interval', type=int, default=100,
-                        help='report interval for measuring epoch progress')
-
     parser.add_argument('--project_name', type=str, default="project_name",
                         help='project name for wandb instance')
 

@@ -19,7 +19,7 @@ parameters:
   project_name:
     value: 'gradient compression'
   experiment_name:
-    value: '1_worker_none'
+    value: '1_worker_none_'
   initial_lr:
     distribution: uniform
     min: 1
