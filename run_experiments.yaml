@@ -5,7 +5,7 @@ metric:
   name: validation perplexity
 parameters:
   hidden_size:
-    value: 300
+    values: [300, 600, 900, 1200, 1500]
   num_workers:
     value: 1
   batch_size_train:
