@@ -5,7 +5,7 @@ metric:
   name: validation perplexity
 parameters:
   hidden_size:
-    values: [300, 600, 900, 1200, 1500]
+    value: 300
   num_workers:
     value: 1
   batch_size_train:
@@ -24,8 +24,3 @@ parameters:
     distribution: uniform
     min: 1
     max: 50
-early_terminate:
-  type: hyperband
-  s: 2
-  eta: 3
-  max_iter: 27
