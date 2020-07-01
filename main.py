@@ -129,7 +129,7 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 1 / 1.1
+    lr_decay_base = 0.99
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         # train, log, val, log
         train_p, time_elapsed = run_epoch(model, train_data, is_train=True)
         run_time += time_elapsed
-        print('\nTrain perplexity at epoch {}: {:8.2f}\n'.format(epoch, train_p))
+        print('\nTrain perplexity at epoch {}:      {:8.2f}'.format(epoch, train_p))
         val_p, _ = run_epoch(model, val_data)
         print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
 
