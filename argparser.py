@@ -68,7 +68,7 @@ def get_args():
     parser.add_argument('--patience', type=int, default=10,
                         help='patience parameter for early stopping')
 
-    parser.add_argument('--model_save', type=str, default='./models',
+    parser.add_argument('--save_model', type=str, default='./models',
                         help='path for saving model checkpointing')
 
 

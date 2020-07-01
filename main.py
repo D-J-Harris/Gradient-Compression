@@ -181,9 +181,8 @@ if __name__ == "__main__":
 
     # testing, set new batch size (to 1)
     # first load the best model
-    model_path = os.path.join(args.save_model, 'model_'+str(id))
+    model_path = os.path.join(args.save_model, 'model_'+str(best_epoch))
     model.load_state_dict(torch.load(model_path))
-    model.eval()
 
     model.batch_size = args.batch_size_test
     args.num_workers = 1
