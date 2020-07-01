@@ -1,3 +1,4 @@
+import os
 import time
 import wandb
 import numpy as np
@@ -9,14 +10,12 @@ import data_load
 from model import LSTM
 from argparser import get_args
 from optim import DistributedSGD
-from utils import repackage_hidden, batchify, get_batch
+from utils import repackage_hidden, batchify, get_batch, save_model
 
 from memory.memory_chooser import memory_chooser
 from compression.compression_chooser import compression_chooser
 
-
 args = get_args()
-
 
 def run_epoch(model, data, is_train=False):
     """Runs the model on the given data, for a single epoch"""
@@ -129,7 +128,7 @@ if __name__ == "__main__":
     print(sum(p.numel() for p in model.parameters() if p.requires_grad))
 
     lr = args.initial_lr
-    lr_decay_base = 0.99
+    lr_decay_base = 1
     m_flat_lr = 14.0  # number of epochs before lr decay
 
     criterion = nn.CrossEntropyLoss()  # mean reduction i.e. sum over (seq_length * batch_size)
@@ -143,6 +142,9 @@ if __name__ == "__main__":
 
     # training
     run_time = 0.0
+    best_val = np.inf
+    best_epoch = 0
+    patience = args.patience
     for epoch in range(1, args.num_epochs + 1):
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
         lr = lr * lr_decay
@@ -154,17 +156,35 @@ if __name__ == "__main__":
         run_time += time_elapsed
         print('\nTrain perplexity at epoch {}:      {:8.2f}'.format(epoch, train_p))
         val_p, _ = run_epoch(model, val_data)
-        print('\nValidation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
+        print('Validation perplexity at epoch {}: {:8.2f}\n'.format(epoch, val_p))
 
         if args.wandb:
             wandb.log({f'train perplexity': train_p})
             wandb.log({f'validation perplexity': val_p})
+
+        # save this model, to back reference for early stopping
+        save_model(args, model, epoch)
+
+        # performing early stopping patience checks
+        if val_p < best_val:
+            best_val = val_p
+            best_epoch = epoch
+            patience = args.patience
+        else:
+            patience -= 1
+            if patience == 0:
+                break
 
     # print some metrics
     print('epoch size:', train_data.size(0) / args.seq_length)
     print('average time per epoch per worker:', run_time / (args.num_workers * args.num_epochs))
 
     # testing, set new batch size (to 1)
+    # first load the best model
+    model_path = os.path.join(args.save_model, 'model_'+str(id))
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+
     model.batch_size = args.batch_size_test
     args.num_workers = 1
     test_p, _ = run_epoch(model, test_data)

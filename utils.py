@@ -1,3 +1,4 @@
+import os
 import torch
 
 def repackage_hidden(h):
@@ -34,3 +35,14 @@ def get_batch(source, batch_idx, worker, args):
     data_split = data[:,(bsz//args.num_workers) * worker: (bsz//args.num_workers) * (worker+1)]
     target_split = target[:,(bsz//args.num_workers) * worker: (bsz//args.num_workers) * (worker+1)].reshape(-1)
     return data_split, target_split
+
+
+def save_model(args, model, id):
+    """Save a model to the defined path"""
+
+    if not os.path.exists(args.save_model):
+        os.mkdir(args.save_model)
+
+    file = os.path.join(args.save_model, 'model_'+str(id))
+    with open(file, 'wb') as f:
+        torch.save(model.state_dict(), f)

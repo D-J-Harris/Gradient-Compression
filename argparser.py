@@ -65,6 +65,12 @@ def get_args():
     parser.add_argument('--experiment_name', type=str, default='experiment_name',
                         help='experiment name for particular wandb run')
 
+    parser.add_argument('--patience', type=int, default=10,
+                        help='patience parameter for early stopping')
+
+    parser.add_argument('--model_save', type=str, default='./models',
+                        help='path for saving model checkpointing')
+
 
     args = parser.parse_args()
     return args
