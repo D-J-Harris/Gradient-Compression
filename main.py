@@ -145,6 +145,7 @@ if __name__ == "__main__":
     best_val = np.inf
     best_epoch = 0
     patience = args.patience
+    num_epochs = 0
     for epoch in range(1, args.num_epochs + 1):
         lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
         lr = lr * lr_decay
@@ -166,6 +167,7 @@ if __name__ == "__main__":
         save_model(args, model, epoch)
 
         # performing early stopping patience checks
+        num_epochs += 1
         if val_p < best_val:
             best_val = val_p
             best_epoch = epoch
@@ -177,7 +179,7 @@ if __name__ == "__main__":
 
     # print some metrics
     print('epoch size:', train_data.size(0) / args.seq_length)
-    print('average time per epoch per worker:', run_time / (args.num_workers * args.num_epochs))
+    print('average time per epoch per worker:', run_time / (args.num_workers * num_epochs))
 
     # testing, set new batch size (to 1)
     # first load the best model
@@ -190,3 +192,5 @@ if __name__ == "__main__":
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
+        wandb.log({f'avg time /epoch /worker': run_time / (args.num_workers * num_epochs)})
+        wandb.log({f'best epoch': best_epoch})

@@ -71,6 +71,9 @@ def get_args():
     parser.add_argument('--save_model', type=str, default='./models',
                         help='path for saving model checkpointing')
 
+    parser.add_argument('--dgc_momentum', type=float, default=0.1,
+                        help='momentum applied to dgc memory correction')
+
 
     args = parser.parse_args()
     return args
