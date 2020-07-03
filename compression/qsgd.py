@@ -1,5 +1,6 @@
 import torch
 from compression.compression import Compressor
+from compression.elias_packing import recursive_encode
 
 
 class QSGDCompressor(Compressor):
@@ -8,6 +9,8 @@ class QSGDCompressor(Compressor):
     def __init__(self, quantum_num):
         super().__init__()
         self.quantum_num = quantum_num
+        self.bits_packed = 0
+        self.counter = 0
 
 
     def __str__(self):
@@ -29,8 +32,15 @@ class QSGDCompressor(Compressor):
         new_level = (previous_level + is_next_level)
 
         sign = tensor.sign()
-        tensor_compressed = (new_level * sign).type(torch.int16)
-        tensor_compressed = tensor_compressed.type(torch.int8 if self.quantum_num < 128 else torch.half)
+        tensor_compressed = (new_level * sign)
+
+        # simulate packing and unpacking, counting bits as progression goes on
+        # note the quantisation has been done - simulated environments don't need actual packing
+        for el in tensor_compressed:
+            bits = recursive_encode(el)
+            self.bits_packed += (len(bits) + 1)
+            self.counter += 1
+
         tensor_compressed = tensor_compressed, norm
 
         # the norm is 32bits, levels are integer compressed bits

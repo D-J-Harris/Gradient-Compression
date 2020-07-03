@@ -194,3 +194,9 @@ if __name__ == "__main__":
         wandb.log({f'test perplexity': test_p})
         wandb.log({f'avg time /epoch /worker': run_time / (args.num_workers * num_epochs)})
         wandb.log({f'best epoch': best_epoch})
+
+        # if qsgd, additionally store the compression ratio calculated
+        if args.compression == 'qsgd':
+            compression_ratio = compressor.bits_packed / (32 * compressor.counter)
+            wandb.config.update({'compression_ratio': compression_ratio})
+            print('QSGD compression ratio:', compression_ratio)
