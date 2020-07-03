@@ -1,6 +1,6 @@
 import torch
 from compression.compression import Compressor
-from compression.elias_packing import recursive_encode
+from compression.elias_packing import gamma_compression, gamma_decompression
 
 
 class QSGDCompressor(Compressor):
@@ -36,14 +36,13 @@ class QSGDCompressor(Compressor):
 
         # simulate packing and unpacking, counting bits as progression goes on
         # note the quantisation has been done - simulated environments don't need actual packing
-        bits = 2 * torch.floor(torch.log2(torch.abs(tensor_compressed))) + 1
-        bits[bits == float('-inf')] = 1.
-        self.bits_packed += (torch.sum(bits).item() + 32)
+        compressed_bits = list(map(gamma_compression, tensor_compressed))
+        self.bits_packed += len(''.join(compressed_bits))
         self.counter += len(tensor_compressed)
-
-        tensor_compressed = tensor_compressed, norm
+        _ = list(map(gamma_decompression, compressed_bits))
 
         # the norm is 32bits, levels (would be) integer compressed bits
+        tensor_compressed = tensor_compressed, norm
         return tensor_compressed, shape
 
     def decompress(self, tensor_compressed, shape):
