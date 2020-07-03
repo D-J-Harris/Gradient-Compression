@@ -198,5 +198,5 @@ if __name__ == "__main__":
         # if qsgd, additionally store the compression ratio calculated
         if args.compression == 'qsgd':
             compression_ratio = compressor.bits_packed / (32 * compressor.counter)
-            wandb.config.update({'compression_ratio': compression_ratio})
+            wandb.config.update({'compression_ratio': compression_ratio}, allow_val_change=True)
             print('QSGD compression ratio:', compression_ratio)

@@ -36,14 +36,14 @@ class QSGDCompressor(Compressor):
 
         # simulate packing and unpacking, counting bits as progression goes on
         # note the quantisation has been done - simulated environments don't need actual packing
-        for el in tensor_compressed:
-            bits = recursive_encode(el)
-            self.bits_packed += (len(bits) + 1)
-            self.counter += 1
+        bits = 2 * torch.floor(torch.log2(torch.abs(tensor_compressed))) + 1
+        bits[bits == float('-inf')] = 1.
+        self.bits_packed += (torch.sum(bits).item() + 32)
+        self.counter += len(tensor_compressed)
 
         tensor_compressed = tensor_compressed, norm
 
-        # the norm is 32bits, levels are integer compressed bits
+        # the norm is 32bits, levels (would be) integer compressed bits
         return tensor_compressed, shape
 
     def decompress(self, tensor_compressed, shape):
