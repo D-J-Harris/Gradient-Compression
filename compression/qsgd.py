@@ -40,9 +40,8 @@ class QSGDCompressor(Compressor):
         self.bits_packed += (torch.sum(bits).item() + 32)
         self.counter += len(tensor_compressed)
 
-        tensor_compressed = tensor_compressed, norm
-
         # the norm is 32bits, levels (would be) integer compressed bits
+        tensor_compressed = tensor_compressed, norm
         return tensor_compressed, shape
 
     def decompress(self, tensor_compressed, shape):
