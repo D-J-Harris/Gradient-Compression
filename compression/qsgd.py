@@ -1,6 +1,5 @@
 import torch
 from compression.compression import Compressor
-from compression.elias_packing import recursive_encode
 
 
 class QSGDCompressor(Compressor):
