@@ -4,7 +4,8 @@ from compression.compression import Compressor
 def sparsify(tensor, compress_ratio):
     tensor = tensor.flatten()
     k = max(1, int(tensor.numel() * compress_ratio))
-    _, indices = torch.topk(tensor.abs(), k)
+    # _, indices = torch.topk(tensor.abs(), k)
+    indices = torch.sort(tensor**2)[1][-3:]
     values = tensor[indices]
     return values, indices
 

@@ -180,6 +180,9 @@ if __name__ == "__main__":
     # print some metrics
     print('epoch size:', train_data.size(0) / args.seq_length)
     print('average time per epoch per worker:', run_time / (args.num_workers * num_epochs))
+    if args.wandb:
+        wandb.log({f'avg time /epoch /worker': run_time / (args.num_workers * num_epochs)})
+        wandb.log({f'best epoch': best_epoch})
 
     # testing, set new batch size (to 1)
     # first load the best model
@@ -192,8 +195,6 @@ if __name__ == "__main__":
     print('\nTest perplexity: {:8.2f}\n'.format(test_p))
     if args.wandb:
         wandb.log({f'test perplexity': test_p})
-        wandb.log({f'avg time /epoch /worker': run_time / (args.num_workers * num_epochs)})
-        wandb.log({f'best epoch': best_epoch})
 
         # if qsgd, additionally store the compression ratio calculated
         if args.compression == 'qsgd':
