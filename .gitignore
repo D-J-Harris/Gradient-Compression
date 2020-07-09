@@ -164,3 +164,4 @@ wandb/
 models_logs/
 penn/
 .idea/
+*.xlsx

@@ -5,7 +5,7 @@ def sparsify(tensor, compress_ratio):
     tensor = tensor.flatten()
     k = max(1, int(tensor.numel() * compress_ratio))
     # _, indices = torch.topk(tensor.abs(), k)
-    indices = torch.sort(tensor**2)[1][-3:]
+    indices = torch.sort(tensor**2)[1][-k:]
     values = tensor[indices]
     return values, indices
 
