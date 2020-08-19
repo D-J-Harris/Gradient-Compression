@@ -163,5 +163,9 @@ Temporary Items
 wandb/
 models_logs/
 penn/
+pics/
 .idea/
 *.xlsx
+*.csv
+*.ipynb
+requirements.txt
