@@ -3,7 +3,7 @@
 ## MSc Thesis in Artificial Intelligence, for University of Edinburgh
 
 Investigating the application of gradient compression techniques used to speed up distributed deep learning.
-Code credit to KAUST for their [GRACE framework](https://github.com/sands-lab/grace), from which compression method implementations are inspired, and to Horovod for the [base distributed optimiser code](https://github.com/horovod/horovod/blob/master/horovod/torch/optimizer.py) this work is built upon.
+Code credit to KAUST for their [GRACE framework](https://github.com/sands-lab/grace), from which compression method implementations are inspired; and to Horovod for the base [distributed optimiser code](https://github.com/horovod/horovod/blob/master/horovod/torch/optimizer.py) this work is built upon.
 
 
 
